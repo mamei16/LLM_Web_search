@@ -1,6 +1,5 @@
 import time
 import re
-import concurrent.futures
 
 import gradio as gr
 
@@ -16,10 +15,6 @@ params = {
     "show search replies": True,
     "top search replies per query": 5
 }
-
-# web_search = False
-# future_to_search_term = {}
-# full_reply = ""
 
 
 def setup():
@@ -46,7 +41,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    #global full_reply, future_to_search_term, web_search
     if shared.model_name == 'None' or shared.model is None:
         logger.error("No model is loaded! Select one in the Model tab.")
         yield ''
@@ -58,57 +52,38 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     else:
         generate_func = generate_reply_HF
 
-    web_search = False
-    future_to_search_term = {}
+    search_error_message = None
     matched_patterns = {}
     max_search_results = params["top search replies per query"]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
-            search_re_match = re.search(f"Search_web: \".*\"", reply)
-            if search_re_match is not None:
-                matched_pattern = search_re_match.group(0)
-                if matched_patterns.get(matched_pattern):
-                    continue
-                web_search = True
-                matched_patterns[matched_pattern] = True
-                search_term = matched_pattern.split(" ", 1)[1].replace("\"", "").rstrip("end")
-                print(f"Searching for {search_term}...")
-                future_to_search_term[executor.submit(search_duckduckgo, search_term, max_search_results)] = search_term
+    for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+        search_re_match = re.search(f"Search_web: \".*\"", reply)
+        if search_re_match is not None:
+            matched_pattern = search_re_match.group(0)
+            if matched_patterns.get(matched_pattern):
+                continue
+            matched_patterns[matched_pattern] = True
+            search_term = matched_pattern.split(" ", 1)[1].replace("\"", "").rstrip("end")
+            print(f"Searching for {search_term}...")
+            try:
+                search_results = search_duckduckgo(search_term, max_search_results)
+            except Exception as exc:
+                exception_message = str(exc)
+                search_error_message = f"The search tool encountered an error: {exception_message}"
+                print(f'{search_term} generated an exception: {exception_message}')
 
-            if re.search("Search_web: \".*\"", reply) is not None:
-                break
-
-            yield reply
-
-        if web_search:
             reply += "\n```"
             reply += "\nSearch tool:\n"
             yield reply
-            search_result_str = ""
-            for i, future in enumerate(concurrent.futures.as_completed(future_to_search_term)):
-                print(i)
-                search_term = future_to_search_term[future]
-                try:
-                    data = future.reply()
-                except Exception as exc:
-                    exception_message = str(exc)
-                    reply += f"The search tool encountered an error: {exception_message}"
-                    print(f'{search_term} generated an exception: {exception_message}')
-                else:
-                    pretty_result = dict_list_to_pretty_str(data)
-                    print(pretty_result)
-                    search_result_str += pretty_result
-                    reply += pretty_result
-                    yield reply
-                    time.sleep(0.041666666666666664)
-            if search_result_str == "":
-                reply += f"The search tool encountered an error and did not return any results."
+            if search_error_message:
+                reply += search_error_message
+            else:
+                reply += dict_list_to_pretty_str(search_results)
+            yield reply
+            time.sleep(0.041666666666666664)
             reply += "```"
             yield reply
 
-            for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
-                reply += reply
-                yield reply
+        yield reply
 
 
 def output_modifier(string, state, is_chat=False):
