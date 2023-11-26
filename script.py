@@ -17,7 +17,8 @@ params = {
     "top search replies per query": 5,
     "instant answers": True,
     "regular search results": True,
-    "search command regex": "Search_web: \"(.*)\""
+    "search command regex": "Search_web: \"(.*)\"",
+    "default command regex": "Search_web: \"(.*)\""
 }
 
 
@@ -46,6 +47,10 @@ def ui():
             params.update({"regular search results": True})
 
     def update_regex_setting(input_str: str):
+        if input_str == "":
+            params.update({"search command regex": params["default command regex"]})
+            return {search_command_regex_error_label:
+                        gr.HTML("", visible=False)}
         try:
             re.compile(input_str)
             params.update({"search command regex": input_str})
@@ -65,11 +70,12 @@ def ui():
             value="Both"
         )
         with gr.Column():
-            search_command_regex = gr.Textbox(label="Search command regex string", placeholder="Search_web: \"(.*)\"")
+            search_command_regex = gr.Textbox(label="Search command regex string",
+                                              placeholder=params["default command regex"])
             search_command_regex_error_label = gr.HTML("", visible=False)
 
     with gr.Accordion("Advanced settings", open=False):
-        gr.Markdown("**Note! Changing these might result in DuckDuckGo rate limiting or the LLM being overwhelmed**")
+        gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LLM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=5)
 
     # Event functions to update the parameters in the backend
