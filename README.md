@@ -23,6 +23,10 @@ Currently, one a single search query per model chat message is supported.
 Search queries are extracted
 from the model's output using a regular expression. This is made easier by prompting the model
 to use a fixed search command (see `example_instruction_templates` for example prompts). 
+
+**Note**: After the search results have been returned, it is necessary to send an empty message to make
+the model continue its output.
+
 ### Using a custom regular expression
 The default regular expression is:  
 ```
