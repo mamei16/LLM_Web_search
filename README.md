@@ -5,7 +5,8 @@
 
 1. Install the necessary requirements found in `requirements.txt`, for example by running:  
 ```pip install -r requirements.txt```
-2. Copy all python files to `text-generation-webui/extensions/`
+2. Create a folder called `llm_web_search` in `text-generation-webui/extensions/`
+2. Copy all python files to this new folder
 3. Launch the Web UI with:  
 ```python server.py --extension llm_web_search```
 
