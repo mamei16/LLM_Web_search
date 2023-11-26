@@ -18,7 +18,9 @@ params = {
     "instant answers": True,
     "regular search results": True,
     "search command regex": "Search_web: \"(.*)\"",
-    "default command regex": "Search_web: \"(.*)\""
+    "default command regex": "Search_web: \"(.*)\"",
+    "display search results in chat": True,
+    "extract website text": False
 }
 
 
@@ -73,16 +75,21 @@ def ui():
             search_command_regex = gr.Textbox(label="Search command regex string",
                                               placeholder=params["default command regex"])
             search_command_regex_error_label = gr.HTML("", visible=False)
+        show_results = gr.Checkbox(value=params['enable'], label='Display search results in chat')
 
     with gr.Accordion("Advanced settings", open=False):
-        gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LLM being overwhelmed**")
+        gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=5)
+        extract_website_text = gr.Checkbox(value=params['extract website text'],
+                                           label='Extract full text from each source website')
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
     num_search_results.change(lambda x: params.update({"top search replies per query": x}), num_search_results, None)
     result_radio.change(update_result_type_setting, result_radio, None)
     search_command_regex.change(update_regex_setting, search_command_regex, search_command_regex_error_label)
+    show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
+    extract_website_text.change(lambda x: params.update({"extract website text": x}), extract_website_text, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
@@ -108,6 +115,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     search_command_regex = params["search command regex"]
     instant_answers = params["instant answers"]
     regular_search_results = params["regular search results"]
+    extract_website_content = params["extract website text"]
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
             search_re_match = re.search(search_command_regex, reply)
@@ -123,7 +131,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                       search_term,
                                                       max_search_results,
                                                       instant_answers,
-                                                      regular_search_results)] = search_term
+                                                      regular_search_results,
+                                                      extract_website_content)] = search_term
 
             if re.search(search_command_regex, reply) is not None:
                 yield reply
@@ -151,7 +160,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                     reply += pretty_result
                     yield reply
                     time.sleep(0.041666666666666664)
-            print(f"search_result_str: {search_result_str}")
             if search_result_str == "":
                 reply += f"The search tool encountered an error and did not return any results."
             reply += "```"
@@ -168,7 +176,12 @@ def output_modifier(string, state, is_chat=False):
     :param is_chat:
     :return:
     """
-    return string
+    if params["display search results in chat"]:
+        return string
+
+    search_result_pattern = "```\nSearch tool:\nResult.*```"
+    compiled_pattern = re.compile(search_result_pattern, re.DOTALL)
+    return re.sub(compiled_pattern, "", string)
 
 
 def custom_css():

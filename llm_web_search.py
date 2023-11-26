@@ -1,4 +1,6 @@
+import requests
 from duckduckgo_search import DDGS
+from bs4 import BeautifulSoup
 
 
 def dict_list_to_pretty_str(data: list[dict]) -> str:
@@ -17,7 +19,7 @@ def dict_list_to_pretty_str(data: list[dict]) -> str:
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
-                      regular_search_queries: bool = True) -> list[dict]:
+                      regular_search_queries: bool = True, get_website_content: bool = False) -> list[dict]:
     with DDGS() as ddgs:
         if instant_answers:
             answer_list = list(ddgs.answers(query))
@@ -34,7 +36,22 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             answer_dict.pop('url', None)
             return [answer_dict]
         elif regular_search_queries:
-            return list(ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results))
+            results = []
+            for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
+                if get_website_content:
+                    result["body"] = get_webpage_content(result["href"])
+                results.append(result)
+            return results
         else:
             raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
+
+
+def get_webpage_content(url: str) -> str:
+    response = requests.get(url)
+
+    soup = BeautifulSoup(response.content, 'html.parser')
+    content = ""
+    for p in soup.find_all('p'):
+        content += p.get_text() + "\n"
+    return content
 
