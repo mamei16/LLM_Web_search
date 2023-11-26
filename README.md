@@ -1,5 +1,5 @@
 # Give your local LLM the ability to search the web!
-
+![Screenshot 2023-11-26 at 05-41-55 Text generation web UI](https://github.com/mamei16/LLM_Web_search/assets/25900898/506cce4f-07cc-41e3-bbaa-f76a7a33b58f)
 
 ## Installation
 
@@ -33,3 +33,4 @@ will be used as the search query. Note that every custom regular expression must
 [capture group](https://www.regular-expressions.info/brackets.html) to extract the search
 query. I recommend https://www.debuggex.com/ to try out custom regular expressions. If a regex
 fulfills the requirement above, the search query should be matched by "Group 1" in Debuggex.
+
