@@ -16,9 +16,13 @@ def dict_list_to_pretty_str(data: list[dict]) -> str:
         raise ValueError("Input must be dict or list[dict]")
 
 
-def search_duckduckgo(query: str, max_results: int) -> list[dict]:
+def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
+                      regular_search_queries: bool = True) -> list[dict]:
     with DDGS() as ddgs:
-        answer_list = list(ddgs.answers(query))
+        if instant_answers:
+            answer_list = list(ddgs.answers(query))
+        else:
+            answer_list = None
         if answer_list:
             answer_dict = answer_list[0]
             answer_dict["title"] = query
@@ -29,6 +33,8 @@ def search_duckduckgo(query: str, max_results: int) -> list[dict]:
             answer_dict.pop('text', None)
             answer_dict.pop('url', None)
             return [answer_dict]
-        else:
+        elif regular_search_queries:
             return list(ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results))
+        else:
+            raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
 

@@ -5,16 +5,19 @@ import concurrent.futures
 import gradio as gr
 
 import modules.shared as shared
-from modules.logging_colors import logger
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import search_duckduckgo, dict_list_to_pretty_str
 
+
 params = {
     "display_name": "LLM Web Search",
-    "Enable": True,
     "is_tab": True,
+    "enable": True,
     "show search replies": True,
-    "top search replies per query": 5
+    "top search replies per query": 5,
+    "instant answers": True,
+    "regular search results": True,
+    "search command regex": "Search_web: \"(.*)\""
 }
 
 
@@ -31,10 +34,49 @@ def ui():
     Creates custom gradio elements when the UI is launched.
     :return:
     """
-    with gr.Row():
-        enable = gr.Checkbox(value=params['Enable'], label='Enable LLM web search')
+    def update_result_type_setting(choice: str):
+        if choice == "Instant answers":
+            params.update({"instant answers": True})
+            params.update({"regular search results": False})
+        elif choice == "Regular results":
+            params.update({"instant answers": False})
+            params.update({"regular search results": True})
+        else:
+            params.update({"instant answers": True})
+            params.update({"regular search results": True})
 
-    enable.change(lambda x: params.update({"Enable": x}), enable, None)
+    def update_regex_setting(input_str: str):
+        try:
+            re.compile(input_str)
+            params.update({"search command regex": input_str})
+            return {search_command_regex_error_label:
+                        gr.HTML("", visible=False)}
+        except re.error as e:
+            return {search_command_regex_error_label:
+                        gr.HTML(f'<font color="red"> Invalid regex. {str(e).capitalize()}</font>', visible=True)}
+
+    with gr.Row():
+        enable = gr.Checkbox(value=params['enable'], label='Enable LLM web search')
+
+    with gr.Row():
+        result_radio = gr.Radio(
+            ["Instant answers", "Regular results", "Both"],
+            label="What kind of search results should be returned?",
+            value="Both"
+        )
+        with gr.Column():
+            search_command_regex = gr.Textbox(label="Search command regex string", placeholder="Search_web: \"(.*)\"")
+            search_command_regex_error_label = gr.HTML("", visible=False)
+
+    with gr.Accordion("Advanced settings", open=False):
+        gr.Markdown("**Note! Changing these might result in DuckDuckGo rate limiting or the LLM being overwhelmed**")
+        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=5)
+
+    # Event functions to update the parameters in the backend
+    enable.change(lambda x: params.update({"enable": x}), enable, None)
+    num_search_results.change(lambda x: params.update({"top search replies per query": x}), num_search_results, None)
+    result_radio.change(update_result_type_setting, result_radio, None)
+    search_command_regex.change(update_regex_setting, search_command_regex, search_command_regex_error_label)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
@@ -42,35 +84,42 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    if shared.model_name == 'None' or shared.model is None:
-        logger.error("No model is loaded! Select one in the Model tab.")
-        yield ''
-        return
-
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
     else:
         generate_func = generate_reply_HF
 
+    if not params['enable']:
+        for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+            yield reply
+        return
+
     web_search = False
     future_to_search_term = {}
     matched_patterns = {}
     max_search_results = params["top search replies per query"]
+    search_command_regex = params["search command regex"]
+    instant_answers = params["instant answers"]
+    regular_search_results = params["regular search results"]
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
-            search_re_match = re.search(f"Search_web: \".*\"", reply)
+            search_re_match = re.search(search_command_regex, reply)
             if search_re_match is not None:
                 matched_pattern = search_re_match.group(0)
                 if matched_patterns.get(matched_pattern):
                     continue
                 web_search = True
                 matched_patterns[matched_pattern] = True
-                search_term = matched_pattern.split(" ", 1)[1].replace("\"", "").rstrip("end")
+                search_term = search_re_match.group(1)
                 print(f"Searching for {search_term}...")
-                future_to_search_term[executor.submit(search_duckduckgo, search_term, max_search_results)] = search_term
+                future_to_search_term[executor.submit(search_duckduckgo,
+                                                      search_term,
+                                                      max_search_results,
+                                                      instant_answers,
+                                                      regular_search_results)] = search_term
 
-            if re.search("Search_web: \".*\"", reply) is not None:
+            if re.search(search_command_regex, reply) is not None:
                 yield reply
                 break
 
