@@ -82,14 +82,15 @@ def ui():
                                                 placeholder=params["default open url command regex"])
             open_url_command_regex_error_label = gr.HTML("", visible=False)
 
-        show_results = gr.Checkbox(value=params['enable'], label='Display search results in chat')
-        show_url_content = gr.Checkbox(value=params['enable'], label='Display extracted URL content in chat')
+        with gr.Column():
+            show_results = gr.Checkbox(value=params['enable'], label='Display search results in chat')
+            show_url_content = gr.Checkbox(value=params['enable'], label='Display extracted URL content in chat')
 
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=5)
         extract_website_text = gr.Checkbox(value=params['extract website text'],
-                                           label='Extract full text from each source website')
+                                           label='Automatically extract full text from each website in the results')
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
