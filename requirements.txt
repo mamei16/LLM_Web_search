@@ -1,2 +1,0 @@
-duckduckgo-search==3.9.8
-beautifulsoup4==4.12.2

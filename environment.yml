@@ -1,0 +1,13 @@
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+- python >=3.8,<3.11  # faiss packages are built for Python versions 3.8-3.10
+- pip
+- faiss-cpu=1.7.4
+- pip:
+  - duckduckgo-search==4.1.0
+  - beautifulsoup4==4.12.2
+  - langchain==0.0.177
+  - unstructured==0.6.6
