@@ -70,8 +70,3 @@ def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int
     compressed_docs = compression_retriever.get_relevant_documents(query)
     return compressed_docs
 
-
-result = faiss_embedding_query_urls("how many parameters does gpt-4 have?",
-                                    ["https://en.wikipedia.org/wiki/GPT-4", "https://openai.com/research/gpt-4",
-                                     "https://medium.com/@mlubbad/the-ultimate-guide-to-gpt-4-parameters-everything-you-need-to-know-about-nlps-game-changer-109b8767855a"])
-print(result)
