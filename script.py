@@ -6,7 +6,7 @@ import gradio as gr
 
 import modules.shared as shared
 from modules.text_generation import generate_reply_HF, generate_reply_custom
-from .llm_web_search import search_duckduckgo, dict_list_to_pretty_str, get_webpage_content
+from .llm_web_search import search_duckduckgo, dict_list_to_pretty_str, get_webpage_content, langchain_search_duckduckgo
 
 
 params = {
@@ -14,7 +14,8 @@ params = {
     "is_tab": True,
     "enable": True,
     "show search replies": True,
-    "top search replies per query": 5,
+    "top search replies per query": 10,
+    "langchain similarity score threshold": 0.5,
     "instant answers": True,
     "regular search results": True,
     "search command regex": "Search_web: \"(.*)\"",
@@ -88,13 +89,17 @@ def ui():
 
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
-        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=5)
+        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=10)
+        langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0, maximum=1,
+                                                   value=0.5)
         extract_website_text = gr.Checkbox(value=params['extract website text'],
                                            label='Automatically extract full text from each website in the results')
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
     num_search_results.change(lambda x: params.update({"top search replies per query": x}), num_search_results, None)
+    langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
+                                          langchain_similarity_threshold, None)
     result_radio.change(update_result_type_setting, result_radio, None)
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
@@ -132,9 +137,10 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_url = {}
     matched_patterns = {}
     max_search_results = params["top search replies per query"]
-    instant_answers = params["instant answers"]
-    regular_search_results = params["regular search results"]
-    extract_website_content = params["extract website text"]
+    #instant_answers = params["instant answers"]
+    #regular_search_results = params["regular search results"]
+    #extract_website_content = params["extract website text"]
+    similarity_score_threshold = params["langchain similarity score threshold"]
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
 
@@ -155,12 +161,10 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 matched_patterns[matched_pattern] = True
                 search_term = search_re_match.group(1)
                 print(f"Searching for {search_term}...")
-                future_to_search_term[executor.submit(search_duckduckgo,
+                future_to_search_term[executor.submit(langchain_search_duckduckgo,
                                                       search_term,
                                                       max_search_results,
-                                                      instant_answers,
-                                                      regular_search_results,
-                                                      extract_website_content)] = search_term
+                                                      similarity_score_threshold)] = search_term
 
             search_re_match = re.search(open_url_command_regex, reply)
             if search_re_match is not None:
@@ -195,9 +199,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                     reply += f"The search tool encountered an error: {exception_message}"
                     print(f'{search_term} generated an exception: {exception_message}')
                 else:
-                    pretty_result = dict_list_to_pretty_str(data)
-                    search_result_str += pretty_result
-                    reply += pretty_result
+                    search_result_str += data
+                    reply += data
                     yield reply
                     time.sleep(0.041666666666666664)
             if search_result_str == "":
