@@ -27,7 +27,7 @@ information about extensions.
 
 ## Usage
 
-Currently, one a single search query per model chat message is supported.
+Currently, only a single search query per model chat message is supported.
 
 Search queries are extracted
 from the model's output using a regular expression. This is made easier by prompting the model
