@@ -23,7 +23,6 @@ params = {
     "open url command regex": "Open_url: \"(.*)\"",
     "default open url command regex": "Open_url: \"(.*)\"",
     "display search results in chat": True,
-    "extract website text": False,
     "display extracted URL content in chat": True
 }
 
@@ -92,8 +91,6 @@ def ui():
         num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=10)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0, maximum=1,
                                                    value=0.5)
-        extract_website_text = gr.Checkbox(value=params['extract website text'],
-                                           label='Automatically extract full text from each website in the results')
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
@@ -112,7 +109,6 @@ def ui():
 
     show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content, None)
-    extract_website_text.change(lambda x: params.update({"extract website text": x}), extract_website_text, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
@@ -139,7 +135,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     max_search_results = params["top search replies per query"]
     #instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
-    #extract_website_content = params["extract website text"]
     similarity_score_threshold = params["langchain similarity score threshold"]
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
