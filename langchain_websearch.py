@@ -21,14 +21,6 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
         return partition_html(url=self.file_path, **self.unstructured_kwargs)
 
 
-def pretty_print_docs(docs):
-    print(
-        f"\n{'-' * 100}\n".join(
-            [f"Document {i+1} ({d.metadata['source']}):\n\n" + d.page_content for i, d in enumerate(docs)]
-        )
-    )
-
-
 def docs_to_pretty_str(docs) -> str:
     ret_str = ""
     for i, doc in enumerate(docs):
@@ -45,8 +37,6 @@ def load_url(url: str):
 def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int = 5,
                                similarity_threshold: float = 0.5) -> list[Document]:
     documents = []
-    #for url in url_list:
-    #    documents.extend(MyUnstructuredHTMLLoader(url).load())
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_url = {executor.submit(load_url, url): url for url in url_list}
@@ -69,4 +59,3 @@ def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int
 
     compressed_docs = compression_retriever.get_relevant_documents(query)
     return compressed_docs
-
