@@ -3,10 +3,12 @@
 
 ## Installation
 
-1. Install the necessary requirements found in `requirements.txt`, for example by running:  
-```pip install -r requirements.txt```
-2. Create a folder called `llm_web_search` in `text-generation-webui/extensions/`
-2. Copy all python files to this new folder
+1. Update the conda environment in which you installed the dependencies of 
+[oobabooga's text-generation-webui](https://github.com/oobabooga/text-generation-webui),
+by running `conda env update -n <your_environment> --file environment.yml`
+
+2. Create a new folder inside `text-generation-webui/extensions/` and name it `llm_web_search` 
+2. Copy all python files from this project into the new folder
 3. Launch the Web UI with:  
 ```python server.py --extension llm_web_search```
 
