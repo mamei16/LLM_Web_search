@@ -53,7 +53,8 @@ def langchain_search_duckduckgo(query: str, max_results: int, similarity_thresho
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
             result_urls.append(result["href"])
-    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, similarity_threshold=similarity_threshold))
+    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
+                                                         similarity_threshold=similarity_threshold))
 
 
 def get_webpage_content(url: str) -> str:
