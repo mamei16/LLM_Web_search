@@ -1,5 +1,12 @@
 # Give your local LLM the ability to search the web!
+This project gives local LLMs the ability to search the web by outputting a specific
+command. Once the command has found in the model output using a regular expression, [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
+is used to search the web and return a number of result pages. Finally, LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/)
+is used to extract the relevant part or each web page in the search results and the results are appended to the model's
+output.
+
 ![Screenshot 2023-11-26 at 05-41-55 Text generation web UI](https://github.com/mamei16/LLM_Web_search/assets/25900898/506cce4f-07cc-41e3-bbaa-f76a7a33b58f)
+
 
 ## Installation
 
@@ -24,7 +31,8 @@ Currently, one a single search query per model chat message is supported.
 
 Search queries are extracted
 from the model's output using a regular expression. This is made easier by prompting the model
-to use a fixed search command (see `example_instruction_templates` for example prompts). 
+to use a fixed search command (see `example_instruction_templates/` for example prompts).
+
 
 **Note**: After the search results have been returned, it is necessary to send an empty message to make
 the model continue its output.
