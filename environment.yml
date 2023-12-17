@@ -11,3 +11,6 @@ dependencies:
   - beautifulsoup4==4.12.2
   - langchain==0.0.177
   - unstructured==0.6.6
+  - llama_index
+  - pypdf
+  - docx2txt
