@@ -233,12 +233,12 @@ def output_modifier(string, state, is_chat=False):
     :return:
     """
     if not params["display search results in chat"]:
-        search_result_pattern = "```\nSearch tool:\n```"
+        search_result_pattern = "```\nSearch tool:\n.*```"
         compiled_pattern = re.compile(search_result_pattern, re.DOTALL)
         string = re.sub(compiled_pattern, "", string)
 
     if not params["display extracted URL content in chat"]:
-        url_opener_pattern = "```\nURL opener tool:\n```"
+        url_opener_pattern = "```\nURL opener tool:\n.*```"
         compiled_pattern = re.compile(url_opener_pattern, re.DOTALL)
         string = re.sub(compiled_pattern, "", string)
     return string
