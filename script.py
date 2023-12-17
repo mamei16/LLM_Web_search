@@ -1,6 +1,8 @@
 import time
 import re
 import concurrent.futures
+import json
+import os
 
 import gradio as gr
 
@@ -13,14 +15,13 @@ params = {
     "display_name": "LLM Web Search",
     "is_tab": True,
     "enable": True,
-    "show search replies": True,
-    "top search replies per query": 10,
+    "search results per query": 10,
     "langchain similarity score threshold": 0.5,
     "instant answers": True,
     "regular search results": True,
-    "search command regex": "Search_web: \"(.*)\"",
+    "search command regex": "",
     "default search command regex": "Search_web: \"(.*)\"",
-    "open url command regex": "Open_url: \"(.*)\"",
+    "open url command regex": "",
     "default open url command regex": "Open_url: \"(.*)\"",
     "display search results in chat": True,
     "display extracted URL content in chat": True
@@ -32,7 +33,18 @@ def setup():
     Is executed when the extension gets imported.
     :return:
     """
-    pass
+    global params
+    try:
+        with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "r") as f:
+            params = json.load(f)
+    except FileNotFoundError:
+        pass
+
+
+def save_settings():
+    global params
+    with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "w") as f:
+        json.dump(params, f)
 
 
 def ui():
@@ -65,36 +77,43 @@ def ui():
 
     with gr.Row():
         enable = gr.Checkbox(value=params['enable'], label='Enable LLM web search')
+        save_settings_btn = gr.Button("Save settings")
 
     with gr.Row():
         result_radio = gr.Radio(
             ["Instant answers", "Regular results", "Both"],
             label="What kind of search results should be returned?",
-            value="Both"
+            value="Regular results"
         )
         with gr.Column():
             search_command_regex = gr.Textbox(label="Search command regex string",
-                                              placeholder=params["default search command regex"])
+                                              placeholder=params["default search command regex"],
+                                              value=params["search command regex"])
             search_command_regex_error_label = gr.HTML("", visible=False)
 
         with gr.Column():
             open_url_command_regex = gr.Textbox(label="Open URL command regex string",
-                                                placeholder=params["default open url command regex"])
+                                                placeholder=params["default open url command regex"],
+                                                value=params["open url command regex"])
             open_url_command_regex_error_label = gr.HTML("", visible=False)
 
         with gr.Column():
-            show_results = gr.Checkbox(value=params['enable'], label='Display search results in chat')
-            show_url_content = gr.Checkbox(value=params['enable'], label='Display extracted URL content in chat')
+            show_results = gr.Checkbox(value=params['display search results in chat'],
+                                       label='Display search results in chat')
+            show_url_content = gr.Checkbox(value=params['display extracted URL content in chat'],
+                                           label='Display extracted URL content in chat')
 
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
-        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100, value=10)
-        langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0, maximum=1,
-                                                   value=0.5)
+        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100,
+                                       value=params["search results per query"], precision=0)
+        langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
+                                                   value=params["langchain similarity score threshold"])
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
-    num_search_results.change(lambda x: params.update({"top search replies per query": x}), num_search_results, None)
+    save_settings_btn.click(fn=save_settings)
+    num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
                                           langchain_similarity_threshold, None)
     result_radio.change(update_result_type_setting, result_radio, None)
@@ -108,7 +127,8 @@ def ui():
                                   open_url_command_regex, open_url_command_regex_error_label)
 
     show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
-    show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content, None)
+    show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
+                            None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
@@ -132,7 +152,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_search_term = {}
     future_to_url = {}
     matched_patterns = {}
-    max_search_results = params["top search replies per query"]
+    max_search_results = int(params["search results per query"])
     #instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
