@@ -2,6 +2,7 @@ import os
 from typing import List
 import concurrent.futures
 
+from requests.exceptions import ConnectionError
 from langchain.document_loaders.unstructured import UnstructuredFileLoader
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -34,8 +35,11 @@ def docs_to_pretty_str(docs) -> str:
     return ret_str
 
 
-def load_url(url: str):
-    return MyUnstructuredHTMLLoader(url).load()
+def load_url(url: str) -> List[Document]:
+    try:
+        return MyUnstructuredHTMLLoader(url).load()
+    except ConnectionError:
+        return []
 
 
 def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int = 5,
