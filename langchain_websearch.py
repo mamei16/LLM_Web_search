@@ -15,10 +15,14 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
     """Loader that uses unstructured to download and load HTML content from
        an URL."""
 
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
+               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+               "Accept-Language": "en-US,en;q=0.5"}
+
     def _get_elements(self) -> List:
         from unstructured.partition.html import partition_html
         # Note the hack: We assume that self.file_path is in fact a URL
-        return partition_html(url=self.file_path, **self.unstructured_kwargs)
+        return partition_html(url=self.file_path, headers=self.headers, **self.unstructured_kwargs)
 
 
 def docs_to_pretty_str(docs) -> str:
@@ -40,12 +44,15 @@ def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_url = {executor.submit(load_url, url): url for url in url_list}
-        for future in concurrent.futures.as_completed(future_to_url):
+        for future in concurrent.futures.as_completed(future_to_url, timeout=10):
             url = future_to_url[future]
             try:
                 documents.extend(future.result())
             except Exception as exc:
                 print('%r generated an exception: %s' % (url, exc))
+
+    if not documents:
+        return documents
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
     texts = text_splitter.split_documents(documents)
