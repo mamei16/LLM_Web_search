@@ -31,7 +31,7 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
         if not content_type.startswith("text/html"):
             raise ValueError(f"Expected content type text/html. Got {content_type}.")
 
-        return partition_html(text=response.text, headers=self.headers, **self.unstructured_kwargs)
+        return partition_html(text=response.text, **self.unstructured_kwargs)
 
 
 def docs_to_pretty_str(docs) -> str:
