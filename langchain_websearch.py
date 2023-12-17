@@ -2,7 +2,9 @@ import os
 from typing import List
 import concurrent.futures
 
-from requests.exceptions import ConnectionError
+from unstructured.partition.html import partition_html
+import requests
+from requests.exceptions import ConnectionError, ConnectTimeout
 from langchain.document_loaders.unstructured import UnstructuredFileLoader
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -21,9 +23,15 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
                "Accept-Language": "en-US,en;q=0.5"}
 
     def _get_elements(self) -> List:
-        from unstructured.partition.html import partition_html
         # Note the hack: We assume that self.file_path is in fact a URL
-        return partition_html(url=self.file_path, headers=self.headers, **self.unstructured_kwargs)
+        response = requests.get(self.file_path, headers=self.headers, verify=True, timeout=8)
+        response.raise_for_status()
+
+        content_type = response.headers.get("Content-Type", "")
+        if not content_type.startswith("text/html"):
+            raise ValueError(f"Expected content type text/html. Got {content_type}.")
+
+        return partition_html(text=response.text, headers=self.headers, **self.unstructured_kwargs)
 
 
 def docs_to_pretty_str(docs) -> str:
