@@ -155,7 +155,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 web_search = True
                 matched_patterns[matched_pattern] = True
                 search_term = search_re_match.group(1)
-                print(f"Searching for {search_term}...")
+                print(f"LLM_Web_search | Searching for {search_term}...")
                 future_to_search_term[executor.submit(langchain_search_duckduckgo,
                                                       search_term,
                                                       max_search_results,
@@ -169,7 +169,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 read_webpage = True
                 matched_patterns[matched_pattern] = True
                 url = search_re_match.group(1)
-                print(f"Reading {url}...")
+                print(f"LLM_Web_search | Reading {url}...")
                 future_to_url[executor.submit(get_webpage_content, url)] = url
 
             if (re.search(search_command_regex, reply) is not None
@@ -192,7 +192,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 except Exception as exc:
                     exception_message = str(exc)
                     reply += f"The search tool encountered an error: {exception_message}"
-                    print(f'{search_term} generated an exception: {exception_message}')
+                    print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
                 else:
                     search_result_str += data
                     reply += data
@@ -212,7 +212,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                     data = future.result()
                 except Exception as exc:
                     reply += f"Couldn't open {url}. Error message: {str(exc)}"
-                    print(f'{url} generated an exception: {str(exc)}')
+                    print(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
                 else:
                     reply += f"\nText content of {url}:\n"
                     reply += data

@@ -53,7 +53,7 @@ def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int
             try:
                 documents.extend(future.result())
             except Exception as exc:
-                print('%r generated an exception: %s' % (url, exc))
+                print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
 
     if not documents:
         return documents
