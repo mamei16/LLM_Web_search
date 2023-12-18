@@ -48,3 +48,20 @@ will be used as the search query. Note that every custom regular expression must
 query. I recommend https://www.debuggex.com/ to try out custom regular expressions. If a regex
 fulfills the requirement above, the search query should be matched by "Group 1" in Debuggex.
 
+## Search backends
+
+### DuckDuckGo
+This is the default web search backend.
+
+### SearXNG
+
+Rudimentary support exists for SearXNG. To use a local or remote 
+SearXNG instance instead of DuckDuckGo, simply paste the URL into the 
+"SearXNG URL" text field of the "LLM Web Search" settings tab. The instance must support
+returning results in JSON format.
+
+### Search parameters
+To modify the categories, engines, languages etc. that should be used for a
+specific query, it must follow the
+[SearXNG search syntax](https://docs.searxng.org/user/search-syntax.html). Currently, 
+automatic redirect and Special Queries are not supported.

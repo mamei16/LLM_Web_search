@@ -1,4 +1,7 @@
 import requests
+from requests.exceptions import JSONDecodeError
+import urllib
+
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
@@ -53,6 +56,21 @@ def langchain_search_duckduckgo(query: str, max_results: int, similarity_thresho
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
             result_urls.append(result["href"])
+    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
+                                                         similarity_threshold=similarity_threshold))
+
+
+def langchain_search_searxng(query: str, url: str, max_results: int, similarity_threshold: float):
+    request_str = f"/search?q={urllib.parse.quote(query)}&format=json"
+    response = requests.get(url+request_str)
+    response.raise_for_status()
+    try:
+        result_dict = response.json()
+    except JSONDecodeError:
+        raise ValueError("JSONDecodeError: Please ensure that the SearXNG instance can return data in JSON format")
+    result_urls = []
+    for result in result_dict["results"]:
+        result_urls.append(result["url"])
     return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
                                                          similarity_threshold=similarity_threshold))
 

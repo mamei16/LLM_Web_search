@@ -8,7 +8,7 @@ import gradio as gr
 
 import modules.shared as shared
 from modules.text_generation import generate_reply_HF, generate_reply_custom
-from .llm_web_search import search_duckduckgo, dict_list_to_pretty_str, get_webpage_content, langchain_search_duckduckgo
+from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
 
 
 params = {
@@ -24,7 +24,8 @@ params = {
     "open url command regex": "",
     "default open url command regex": "Open_url: \"(.*)\"",
     "display search results in chat": True,
-    "display extracted URL content in chat": True
+    "display extracted URL content in chat": True,
+    "searxng url": ""
 }
 
 
@@ -34,9 +35,14 @@ def setup():
     :return:
     """
     global params
+    default_param_items = params.items()
     try:
         with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "r") as f:
             params = json.load(f)
+        # Ensure that items from new feature are not removed when old settings are loaded
+        for key, value in default_param_items:
+            if key not in params:
+                params[key] = value
     except FileNotFoundError:
         pass
 
@@ -109,6 +115,9 @@ def ui():
                                        value=params["search results per query"], precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
                                                    value=params["langchain similarity score threshold"])
+    with gr.Row():
+        searxng_url = gr.Textbox(label="SearXNG URL",
+                                 value=params["searxng url"])
 
     # Event functions to update the parameters in the backend
     enable.change(lambda x: params.update({"enable": x}), enable, None)
@@ -129,6 +138,7 @@ def ui():
     show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
                             None)
+    searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
@@ -158,6 +168,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     similarity_score_threshold = params["langchain similarity score threshold"]
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
+    searxng_url = params["searxng url"]
 
     if search_command_regex == "":
         search_command_regex = params["default search command regex"]
@@ -176,10 +187,17 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 matched_patterns[matched_pattern] = True
                 search_term = search_re_match.group(1)
                 print(f"LLM_Web_search | Searching for {search_term}...")
-                future_to_search_term[executor.submit(langchain_search_duckduckgo,
-                                                      search_term,
-                                                      max_search_results,
-                                                      similarity_score_threshold)] = search_term
+                if searxng_url == "":
+                    future_to_search_term[executor.submit(langchain_search_duckduckgo,
+                                                          search_term,
+                                                          max_search_results,
+                                                          similarity_score_threshold)] = search_term
+                else:
+                    future_to_search_term[executor.submit(langchain_search_searxng,
+                                                          search_term,
+                                                          searxng_url,
+                                                          max_search_results,
+                                                          similarity_score_threshold)] = search_term
 
             search_re_match = re.search(open_url_command_regex, reply)
             if search_re_match is not None:
