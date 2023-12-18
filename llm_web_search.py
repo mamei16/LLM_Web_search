@@ -2,7 +2,7 @@ import requests
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
-from .langchain_websearch import faiss_embedding_query_urls, docs_to_pretty_str
+from .langchain_websearch import docs_to_pretty_str, LangchainCompressor
 
 
 def dict_list_to_pretty_str(data: list[dict]) -> str:
@@ -48,13 +48,16 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
 
 
-def langchain_search_duckduckgo(query: str, max_results: int, similarity_threshold: float):
+def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
+                                max_results: int, similarity_threshold: float):
     with DDGS() as ddgs:
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
             result_urls.append(result["href"])
-    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
-                                                         similarity_threshold=similarity_threshold))
+    documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
+                                                                num_results=max_results,
+                                                                similarity_threshold=similarity_threshold)
+    return docs_to_pretty_str(documents)
 
 
 def get_webpage_content(url: str) -> str:

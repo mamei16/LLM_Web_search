@@ -26,7 +26,7 @@ class FileFaissRetriever:
             cache_folder = os.path.join(torch_cache_home, 'sentence_transformers')
 
         self.model = HuggingFaceEmbedding(
-            model_name=f"{cache_folder}/sentence-transformers_{langchain_embed_model.model_name}/")
+            model_name=f"{cache_folder}/sentence-transformers_{langchain_embed_model.model_name}/")  # TODO: hardcoding '/" here might cause problems on windows
         self.retriever = None
 
     def load_directory(self, dir_path):
