@@ -3,6 +3,7 @@ import re
 import concurrent.futures
 import json
 import os
+from datetime import datetime
 
 import gradio as gr
 
@@ -51,6 +52,9 @@ def save_settings():
     global params
     with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "w") as f:
         json.dump(params, f)
+    current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return gr.HTML(f'<font color="green"> Settings were saved at {current_datetime}</font>',
+                   visible=True)
 
 
 def toggle_extension(_enable: bool):
@@ -97,7 +101,9 @@ def ui():
 
     with gr.Row():
         enable = gr.Checkbox(value=params['enable'], label='Enable LLM web search')
-        save_settings_btn = gr.Button("Save settings")
+        with gr.Column():
+            save_settings_btn = gr.Button("Save settings")
+            saved_success_elem = gr.HTML("", visible=False)
 
     with gr.Row():
         result_radio = gr.Radio(
@@ -135,7 +141,7 @@ def ui():
 
     # Event functions to update the parameters in the backend
     enable.change(toggle_extension, enable, None)
-    save_settings_btn.click(fn=save_settings)
+    save_settings_btn.click(save_settings, None, [saved_success_elem])
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
                                           langchain_similarity_threshold, None)
