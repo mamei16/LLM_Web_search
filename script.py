@@ -74,7 +74,9 @@ def ui():
             params.update({setting_key: params[f"default {setting_key}"]})
             return {error_html_element: gr.HTML("", visible=False)}
         try:
-            re.compile(input_str)
+            compiled = re.compile(input_str)
+            if compiled.groups > 1:
+                raise re.error(f"Only 1 capturing group allowed in regex, but there are {compiled.groups}.")
             params.update({setting_key: input_str})
             return {error_html_element: gr.HTML("", visible=False)}
         except re.error as e:
