@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import faiss
@@ -7,19 +8,33 @@ from llama_index.schema import NodeWithScore
 
 from llama_index.node_parser import SentenceSplitter
 from llama_index.vector_stores.faiss import FaissVectorStore
+from langchain.embeddings import HuggingFaceEmbeddings
 
 
 class FileFaissRetriever:
 
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, langchain_embed_model):
+        cache_folder = os.getenv('SENTENCE_TRANSFORMERS_HOME')
+        if cache_folder is None:
+            try:
+                from torch.hub import _get_torch_home
+
+                torch_cache_home = _get_torch_home()
+            except ImportError:
+                torch_cache_home = os.path.expanduser(
+                    os.getenv('TORCH_HOME', os.path.join(os.getenv('XDG_CACHE_HOME', '~/.cache'), 'torch')))
+            cache_folder = os.path.join(torch_cache_home, 'sentence_transformers')
+
+        self.model = HuggingFaceEmbedding(
+            model_name=f"{cache_folder}/sentence-transformers_{langchain_embed_model.model_name}/")
+        self.retriever = None
 
     def load_directory(self, dir_path):
         documents = SimpleDirectoryReader(dir_path, recursive=True).load_data()
 
-        text_splitter = SentenceSplitter(chunk_size=512, chunk_overlap=10)
+        text_splitter = SentenceSplitter(chunk_size=500, chunk_overlap=100)
         service_context = ServiceContext.from_defaults(text_splitter=text_splitter, llm=None,
-                                                       embed_model=embed_model)
+                                                       embed_model=self.model)
 
         # dimensions of all-MiniLM-L6-v2
         d = 384
@@ -48,9 +63,9 @@ class FileFaissRetriever:
         return ret_str
 
 
-embed_model = HuggingFaceEmbedding(model_name="/home/marme/.cache/torch/sentence_transformers/sentence-transformers_all-MiniLM-L6-v2/")
+langchain_embedding_model = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-retriever = FileFaissRetriever(embed_model)
+retriever = FileFaissRetriever(langchain_embed_model=langchain_embedding_model)
 
 retriever.load_directory("/home/marme/Documents/articles")
 
