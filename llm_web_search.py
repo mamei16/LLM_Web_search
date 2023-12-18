@@ -5,7 +5,7 @@ import urllib
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
-from .langchain_websearch import faiss_embedding_query_urls, docs_to_pretty_str
+from .langchain_websearch import docs_to_pretty_str, LangchainCompressor
 
 
 def dict_list_to_pretty_str(data: list[dict]) -> str:
@@ -51,16 +51,20 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
 
 
-def langchain_search_duckduckgo(query: str, max_results: int, similarity_threshold: float):
+def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
+                                max_results: int, similarity_threshold: float):
     with DDGS() as ddgs:
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
             result_urls.append(result["href"])
-    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
-                                                         similarity_threshold=similarity_threshold))
+    documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
+                                                                num_results=max_results,
+                                                                similarity_threshold=similarity_threshold)
+    return docs_to_pretty_str(documents)
 
 
-def langchain_search_searxng(query: str, url: str, max_results: int, similarity_threshold: float):
+def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor,
+                             max_results: int, similarity_threshold: float):
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json"
     response = requests.get(url+request_str)
     response.raise_for_status()
@@ -71,8 +75,10 @@ def langchain_search_searxng(query: str, url: str, max_results: int, similarity_
     result_urls = []
     for result in result_dict["results"]:
         result_urls.append(result["url"])
-    return docs_to_pretty_str(faiss_embedding_query_urls(query, result_urls, num_results=max_results,
-                                                         similarity_threshold=similarity_threshold))
+    documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
+                                                                num_results=max_results,
+                                                                similarity_threshold=similarity_threshold)
+    return docs_to_pretty_str(documents)
 
 
 def get_webpage_content(url: str) -> str:

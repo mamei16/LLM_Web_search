@@ -7,8 +7,10 @@ import os
 import gradio as gr
 
 import modules.shared as shared
+import torch
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
+from .langchain_websearch import LangchainCompressor
 
 
 params = {
@@ -27,6 +29,7 @@ params = {
     "display extracted URL content in chat": True,
     "searxng url": ""
 }
+langchain_compressor = LangchainCompressor()
 
 
 def setup():
@@ -35,14 +38,11 @@ def setup():
     :return:
     """
     global params
-    default_param_items = params.items()
+    toggle_extension(True)
     try:
         with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "r") as f:
-            params = json.load(f)
-        # Ensure that items from new feature are not removed when old settings are loaded
-        for key, value in default_param_items:
-            if key not in params:
-                params[key] = value
+            saved_params = json.load(f)
+        params.update(saved_params)
     except FileNotFoundError:
         pass
 
@@ -51,6 +51,18 @@ def save_settings():
     global params
     with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "w") as f:
         json.dump(params, f)
+
+
+def toggle_extension(_enable: bool):
+    global langchain_compressor
+    if _enable:
+        langchain_compressor = LangchainCompressor()
+        compressor_model = langchain_compressor.embeddings.client
+        compressor_model.to(compressor_model._target_device)
+    else:
+        del langchain_compressor.embeddings.client
+        torch.cuda.empty_cache()
+    params.update({"enable": _enable})
 
 
 def ui():
@@ -122,7 +134,7 @@ def ui():
                                  value=params["searxng url"])
 
     # Event functions to update the parameters in the backend
-    enable.change(lambda x: params.update({"enable": x}), enable, None)
+    enable.change(toggle_extension, enable, None)
     save_settings_btn.click(fn=save_settings)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
@@ -192,12 +204,14 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 if searxng_url == "":
                     future_to_search_term[executor.submit(langchain_search_duckduckgo,
                                                           search_term,
+                                                          langchain_compressor,
                                                           max_search_results,
                                                           similarity_score_threshold)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,
                                                           searxng_url,
+                                                          langchain_compressor,
                                                           max_search_results,
                                                           similarity_score_threshold)] = search_term
 

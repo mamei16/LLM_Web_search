@@ -34,6 +34,43 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
         return partition_html(text=response.text, **self.unstructured_kwargs)
 
 
+class LangchainCompressor:
+
+    def __init__(self):
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+    def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
+                                   similarity_threshold: float = 0.5) -> list[Document]:
+        documents = []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_url = {executor.submit(load_url, url): url for url in url_list}
+            for future in concurrent.futures.as_completed(future_to_url, timeout=10):
+                url = future_to_url[future]
+                try:
+                    documents.extend(future.result())
+                except Exception as exc:
+                    print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
+
+        if not documents:
+            return documents
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+        texts = text_splitter.split_documents(documents)
+
+        retriever = FAISS.from_documents(texts, self.embeddings).as_retriever(
+            search_kwargs={"k": num_results}
+        )
+
+        embeddings_filter = EmbeddingsFilter(embeddings=self.embeddings, k=None,
+                                             similarity_threshold=similarity_threshold)
+        compression_retriever = ContextualCompressionRetriever(base_compressor=embeddings_filter,
+                                                               base_retriever=retriever)
+
+        compressed_docs = compression_retriever.get_relevant_documents(query)
+        return compressed_docs
+
+
 def docs_to_pretty_str(docs) -> str:
     ret_str = ""
     for i, doc in enumerate(docs):
@@ -50,31 +87,3 @@ def load_url(url: str) -> List[Document]:
         return []
 
 
-def faiss_embedding_query_urls(query: str, url_list: list[str], num_results: int = 5,
-                               similarity_threshold: float = 0.5) -> list[Document]:
-    documents = []
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_url = {executor.submit(load_url, url): url for url in url_list}
-        for future in concurrent.futures.as_completed(future_to_url, timeout=10):
-            url = future_to_url[future]
-            try:
-                documents.extend(future.result())
-            except Exception as exc:
-                print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
-
-    if not documents:
-        return documents
-
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
-    texts = text_splitter.split_documents(documents)
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    retriever = FAISS.from_documents(texts, embeddings).as_retriever(
-        search_kwargs={"k": num_results}
-    )
-
-    embeddings_filter = EmbeddingsFilter(embeddings=embeddings, k=None, similarity_threshold=similarity_threshold)
-    compression_retriever = ContextualCompressionRetriever(base_compressor=embeddings_filter, base_retriever=retriever)
-
-    compressed_docs = compression_retriever.get_relevant_documents(query)
-    return compressed_docs
