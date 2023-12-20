@@ -65,8 +65,10 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
                                               metadata={"source": answer_dict["url"]})
                 documents.append(instant_answer_doc)
 
+        results = []
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None, max_results=max_results):
+            results.append(result)
             result_urls.append(result["href"])
 
     documents.extend(langchain_compressor.faiss_embedding_query_urls(query, result_urls,
@@ -75,7 +77,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
-        return dict_list_to_pretty_str(search_duckduckgo(query, max_results, instant_answers=False))
+        return dict_list_to_pretty_str(results)
     return docs_to_pretty_str(documents)
 
 
