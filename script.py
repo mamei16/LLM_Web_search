@@ -83,7 +83,7 @@ def ui():
         elif choice == "Regular results":
             params.update({"instant answers": False})
             params.update({"regular search results": True})
-        else:
+        elif choice == "Regular results and instant answers":
             params.update({"instant answers": True})
             params.update({"regular search results": True})
 
@@ -112,9 +112,10 @@ def ui():
 
     with gr.Row():
         result_radio = gr.Radio(
-            ["Instant answers", "Regular results", "Both"],
+            ["Regular results", "Regular results and instant answers"],
             label="What kind of search results should be returned?",
-            value="Regular results"
+            value="Regular results and instant answers" if (params["regular search results"]
+                                                            and params["instant answers"]) else "Regular results"
         )
         with gr.Column():
             search_command_regex = gr.Textbox(label="Search command regex string",
@@ -189,7 +190,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_url = {}
     matched_patterns = {}
     max_search_results = int(params["search results per query"])
-    #instant_answers = params["instant answers"]
+    instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
     search_command_regex = params["search command regex"]
@@ -218,7 +219,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           search_term,
                                                           langchain_compressor,
                                                           max_search_results,
-                                                          similarity_score_threshold)] = search_term
+                                                          similarity_score_threshold,
+                                                          instant_answers)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,

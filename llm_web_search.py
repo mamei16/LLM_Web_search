@@ -4,6 +4,7 @@ import urllib
 
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
+from langchain.schema import Document
 
 from .langchain_websearch import docs_to_pretty_str, LangchainCompressor
 
@@ -42,7 +43,8 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             return [answer_dict]
         elif regular_search_queries:
             results = []
-            for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
+            for result in ddgs.text(query, region='wt-wt', safesearch='moderate',
+                                    timelimit=None, max_results=max_results):
                 if get_website_content:
                     result["body"] = get_webpage_content(result["href"])
                 results.append(result)
@@ -52,14 +54,28 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 
 def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
-                                max_results: int, similarity_threshold: float):
+                                max_results: int, similarity_threshold: float, instant_answers: bool):
+    documents = []
     with DDGS() as ddgs:
+        if instant_answers:
+            answer_list = list(ddgs.answers(query))
+            if answer_list:
+                answer_dict = answer_list[0]
+                instant_answer_doc = Document(page_content=answer_dict["text"],
+                                              metadata={"source": answer_dict["url"]})
+                documents.append(instant_answer_doc)
+
         result_urls = []
-        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit='y', max_results=max_results):
+        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None, max_results=max_results):
             result_urls.append(result["href"])
-    documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
-                                                                num_results=max_results,
-                                                                similarity_threshold=similarity_threshold)
+
+    documents.extend(langchain_compressor.faiss_embedding_query_urls(query, result_urls,
+                                                                     num_results=max_results,
+                                                                     similarity_threshold=similarity_threshold))
+    if not documents:    # Fall back to old simple search rather than returning nothing
+        print("LLM_Web_search | Could not find any page content "
+              "similar enough to be extracted, using basic search fallback...")
+        return dict_list_to_pretty_str(search_duckduckgo(query, max_results, instant_answers=False))
     return docs_to_pretty_str(documents)
 
 
