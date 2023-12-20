@@ -28,7 +28,8 @@ params = {
     "default open url command regex": "Open_url: \"(.*)\"",
     "display search results in chat": True,
     "display extracted URL content in chat": True,
-    "searxng url": ""
+    "searxng url": "",
+    "cpu only": False
 }
 langchain_compressor = LangchainCompressor()
 
@@ -39,13 +40,13 @@ def setup():
     :return:
     """
     global params
-    toggle_extension(True)
     try:
         with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "r") as f:
             saved_params = json.load(f)
         params.update(saved_params)
     except FileNotFoundError:
         pass
+    toggle_extension(params["enable"])
 
 
 def save_settings():
@@ -60,12 +61,13 @@ def save_settings():
 def toggle_extension(_enable: bool):
     global langchain_compressor
     if _enable:
-        langchain_compressor = LangchainCompressor()
+        langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda")
         compressor_model = langchain_compressor.embeddings.client
         compressor_model.to(compressor_model._target_device)
     else:
-        del langchain_compressor.embeddings.client
-        torch.cuda.empty_cache()
+        if not params["cpu only"]:  # free some VRAM
+            del langchain_compressor.embeddings.client
+            torch.cuda.empty_cache()
     params.update({"enable": _enable})
 
 
@@ -101,6 +103,9 @@ def ui():
 
     with gr.Row():
         enable = gr.Checkbox(value=params['enable'], label='Enable LLM web search')
+        use_cpu_only = gr.Checkbox(value=params['cpu only'],
+                                   label='Run extension on CPU only '
+                                         '(Save settings and restart for the change to take effect)')
         with gr.Column():
             save_settings_btn = gr.Button("Save settings")
             saved_success_elem = gr.HTML("", visible=False)
@@ -141,6 +146,7 @@ def ui():
 
     # Event functions to update the parameters in the backend
     enable.change(toggle_extension, enable, None)
+    use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),

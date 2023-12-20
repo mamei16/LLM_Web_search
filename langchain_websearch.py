@@ -36,8 +36,8 @@ class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
 
 class LangchainCompressor:
 
-    def __init__(self):
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    def __init__(self, device="cuda"):
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device})
 
     def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
                                    similarity_threshold: float = 0.5) -> list[Document]:
