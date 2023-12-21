@@ -35,14 +35,20 @@ to use a fixed search command (see `example_instruction_templates/` for example 
 
 ### Using a custom regular expression
 The default regular expression is:  
-```
-Search_web: \"(.*)\"
+```regexp
+Search_web: "(.*)"
 ```
 Where `Search_web` is the search command and everything between the subsequent quotation marks
 will be used as the search query. Note that every custom regular expression must use a
 [capture group](https://www.regular-expressions.info/brackets.html) to extract the search
 query. I recommend https://www.debuggex.com/ to try out custom regular expressions. If a regex
 fulfills the requirement above, the search query should be matched by "Group 1" in Debuggex.
+
+Here is an example of a more flexible, but more complex, regex that works for several
+different models:
+```regexp
+Search_web: ?(?:["'])(.*)(?:["'])
+```
 
 ## Search backends
 
