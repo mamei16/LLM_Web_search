@@ -8,6 +8,7 @@ from datetime import datetime
 import gradio as gr
 
 import modules.shared as shared
+from modules import chat
 import torch
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
@@ -32,6 +33,7 @@ params = {
     "cpu only": False
 }
 langchain_compressor = LangchainCompressor()
+update_history = None
 
 
 def setup():
@@ -173,6 +175,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
+    global update_history
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
@@ -196,16 +199,21 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
     searxng_url = params["searxng url"]
+    display_search_results = params["display search results in chat"]
+    display_webpage_content = params["display extracted URL content in chat"]
 
     if search_command_regex == "":
         search_command_regex = params["default search command regex"]
     if open_url_command_regex == "":
         open_url_command_regex = params["default open url command regex"]
 
+    compiled_search_command_regex = re.compile(search_command_regex)
+    compiled_open_url_command_regex = re.compile(open_url_command_regex)
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
 
-            search_re_match = re.search(search_command_regex, reply)
+            search_re_match = compiled_search_command_regex.search(reply)
             if search_re_match is not None:
                 matched_pattern = search_re_match.group(0)
                 if matched_patterns.get(matched_pattern):
@@ -229,7 +237,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           max_search_results,
                                                           similarity_score_threshold)] = search_term
 
-            search_re_match = re.search(open_url_command_regex, reply)
+            search_re_match = compiled_open_url_command_regex.search(reply)
             if search_re_match is not None:
                 matched_pattern = search_re_match.group(0)
                 if matched_patterns.get(matched_pattern):
@@ -240,18 +248,21 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 print(f"LLM_Web_search | Reading {url}...")
                 future_to_url[executor.submit(get_webpage_content, url)] = url
 
+            # Stop model if either command has been detected in the output
             if (re.search(search_command_regex, reply) is not None
                     or re.search(open_url_command_regex, reply) is not None):
                 yield reply
                 break
-
             yield reply
+
+        original_model_reply = reply
 
         if web_search:
             reply += "\n```"
             reply += "\nSearch tool:\n"
-            time.sleep(0.041666666666666664)
-            yield reply
+            if display_search_results:
+                yield reply
+                time.sleep(0.041666666666666664)
             search_result_str = ""
             for i, future in enumerate(concurrent.futures.as_completed(future_to_search_term)):
                 search_term = future_to_search_term[future]
@@ -264,16 +275,20 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 else:
                     search_result_str += data
                     reply += data
-                    yield reply
-                    time.sleep(0.041666666666666664)
+                    if display_search_results:
+                        yield reply
+                        time.sleep(0.041666666666666664)
             if search_result_str == "":
                 reply += f"\nThe search tool encountered an error and did not return any results."
             reply += "```"
-            yield reply
+            if display_search_results:
+                yield reply
         elif read_webpage:
             reply += "\n```"
             reply += "\nURL opener tool:\n"
-            yield reply
+            if display_webpage_content:
+                yield reply
+                time.sleep(0.041666666666666664)
             for i, future in enumerate(concurrent.futures.as_completed(future_to_url)):
                 url = future_to_url[future]
                 try:
@@ -284,10 +299,29 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 else:
                     reply += f"\nText content of {url}:\n"
                     reply += data
-                    yield reply
-                    time.sleep(0.041666666666666664)
-            reply += "```"
-            yield reply
+                    if display_webpage_content:
+                        yield reply
+                        time.sleep(0.041666666666666664)
+            reply += "```\n"
+            if display_webpage_content:
+                yield reply
+
+    substring_dict = chat.get_turn_substrings(state, instruct=True)
+    if web_search or read_webpage:
+        display_results = (web_search and display_search_results or
+                           read_webpage and display_webpage_content)
+        # Add results to context and continue model output
+        new_question = f"{question}{reply}\n\n{substring_dict['bot_turn_stripped']}{state['name2']}:\n"
+        new_reply = ""
+        for new_reply in generate_func(new_question, new_question, seed, state,
+                                       stopping_strings, is_chat=is_chat):
+            if display_results:
+                yield f"{reply}\n{new_reply}"
+            else:
+                yield f"{original_model_reply}\n{new_reply}"
+
+        if not display_results:
+            update_history = [state["textbox"], f"{reply}\n{new_reply}"]
 
 
 def output_modifier(string, state, is_chat=False):
@@ -300,15 +334,6 @@ def output_modifier(string, state, is_chat=False):
     :param is_chat:
     :return:
     """
-    if not params["display search results in chat"]:
-        search_result_pattern = "```\nSearch tool:\n.*```"
-        compiled_pattern = re.compile(search_result_pattern, re.DOTALL)
-        string = re.sub(compiled_pattern, "", string)
-
-    if not params["display extracted URL content in chat"]:
-        url_opener_pattern = "```\nURL opener tool:\n.*```"
-        compiled_pattern = re.compile(url_opener_pattern, re.DOTALL)
-        string = re.sub(compiled_pattern, "", string)
     return string
 
 
@@ -357,4 +382,8 @@ def history_modifier(history):
     :param history:
     :return:
     """
+    global update_history
+    if update_history:
+        history["internal"].append(update_history)
+        update_history = None
     return history
