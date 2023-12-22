@@ -281,7 +281,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                         yield reply
                         time.sleep(0.041666666666666664)
             if search_result_str == "":
-                reply += f"\nThe search tool encountered an error and did not return any results."
+                reply += f"\nThe search tool did not return any results."
             reply += "```"
             if display_search_results:
                 yield reply
