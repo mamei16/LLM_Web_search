@@ -43,7 +43,8 @@ def setup():
     """
     global params
     try:
-        with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "r") as f:
+        extension_path = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(extension_path, "settings.json"), "r") as f:
             saved_params = json.load(f)
         params.update(saved_params)
     except FileNotFoundError:
@@ -53,7 +54,8 @@ def setup():
 
 def save_settings():
     global params
-    with open(f"{os.path.dirname(os.path.abspath(__file__))}/settings.json", "w") as f:
+    extension_path = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(extension_path, "settings.json"), "w") as f:
         json.dump(params, f)
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return gr.HTML(f'<font color="green"> Settings were saved at {current_datetime}</font>',
