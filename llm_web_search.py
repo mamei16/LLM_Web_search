@@ -26,6 +26,7 @@ def dict_list_to_pretty_str(data: list[dict]) -> str:
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
                       regular_search_queries: bool = True, get_website_content: bool = False) -> list[dict]:
+    query = query.strip("\"'")
     with DDGS() as ddgs:
         if instant_answers:
             answer_list = list(ddgs.answers(query))
@@ -56,6 +57,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
                                 max_results: int, similarity_threshold: float, instant_answers: bool):
     documents = []
+    query = query.strip("\"'")
     with DDGS() as ddgs:
         if instant_answers:
             answer_list = list(ddgs.answers(query))
