@@ -19,7 +19,7 @@ params = {
     "display_name": "LLM Web Search",
     "is_tab": True,
     "enable": True,
-    "search results per query": 10,
+    "search results per query": 5,
     "langchain similarity score threshold": 0.5,
     "instant answers": True,
     "regular search results": True,

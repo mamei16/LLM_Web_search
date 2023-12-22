@@ -25,9 +25,7 @@ information about extensions.
 ## Usage
 
 Search queries are extracted from the model's output using a regular expression. This is made easier by prompting the model
-to use a fixed search command (see `example_instruction_templates/` for example prompts). To get
- the best search results, queries should be specific and consist of multiple words. For example,
-instead of searching for the keyword "bimgus", a better query would be "what is bimgus?".   
+to use a fixed search command (see `example_instruction_templates/` for example prompts).   
 Currently, only a single search query per model chat message is supported.
 
 ### Using a custom regular expression

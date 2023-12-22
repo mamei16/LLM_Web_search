@@ -4,6 +4,7 @@ import concurrent.futures
 
 from langchain.document_transformers import EmbeddingsRedundantFilter
 from langchain.retrievers.document_compressors import DocumentCompressorPipeline
+from langchain.retrievers.ensemble import EnsembleRetriever
 from unstructured.partition.html import partition_html
 import requests
 from requests.exceptions import ConnectionError, ConnectTimeout
@@ -14,6 +15,10 @@ from langchain.vectorstores import FAISS
 from langchain.retrievers.document_compressors.embeddings_filter import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema import Document
+try:
+    from langchain_community.retrievers import BM25Retriever
+except ImportError:
+    BM25Retriever = None
 
 
 class MyUnstructuredHTMLLoader(UnstructuredFileLoader):
@@ -57,12 +62,22 @@ class LangchainCompressor:
         if not documents:
             return documents
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=10,
+                                                       separators=["\n\n", "\n", ".", ", ", " ", ""])
         texts = text_splitter.split_documents(documents)
 
-        retriever = FAISS.from_documents(texts, self.embeddings).as_retriever(
+        faiss_retriever = FAISS.from_documents(texts, self.embeddings).as_retriever(
             search_kwargs={"k": num_results}
         )
+        if not BM25Retriever:
+            raise ImportError("Could not import BM25Retriever. Please ensure that you have installed "
+                              "langchain==0.0.352")
+
+        #  This sparse retriever is good at finding relevant documents based on keywords,
+        #  while the dense retriever is good at finding relevant documents based on semantic similarity.
+        bm25_retriever = BM25Retriever.from_documents(texts, preprocess_func=lambda t: t.replace("\n", " \n"))
+        bm25_retriever.k = num_results
+
         redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
         embeddings_filter = EmbeddingsFilter(embeddings=self.embeddings, k=None,
                                              similarity_threshold=similarity_threshold)
@@ -70,10 +85,16 @@ class LangchainCompressor:
             transformers=[redundant_filter, embeddings_filter]
         )
         compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor,
-                                                               base_retriever=retriever)
+                                                               base_retriever=faiss_retriever)
 
-        compressed_docs = compression_retriever.get_relevant_documents(query)
-        return compressed_docs
+        ensemble_retriever = EnsembleRetriever(
+            retrievers=[bm25_retriever, compression_retriever], weights=[0.4, 0.5]
+        )
+
+        compressed_docs = ensemble_retriever.get_relevant_documents(query)
+
+        # Ensemble may return more than "num_results" results, so cut off excess ones
+        return compressed_docs[:num_results]
 
 
 def docs_to_pretty_str(docs) -> str:
