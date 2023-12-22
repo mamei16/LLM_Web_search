@@ -2,6 +2,8 @@ import os
 from typing import List
 import concurrent.futures
 
+from langchain.document_transformers import EmbeddingsRedundantFilter
+from langchain.retrievers.document_compressors import DocumentCompressorPipeline
 from unstructured.partition.html import partition_html
 import requests
 from requests.exceptions import ConnectionError, ConnectTimeout
@@ -61,10 +63,13 @@ class LangchainCompressor:
         retriever = FAISS.from_documents(texts, self.embeddings).as_retriever(
             search_kwargs={"k": num_results}
         )
-
+        redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
         embeddings_filter = EmbeddingsFilter(embeddings=self.embeddings, k=None,
                                              similarity_threshold=similarity_threshold)
-        compression_retriever = ContextualCompressionRetriever(base_compressor=embeddings_filter,
+        pipeline_compressor = DocumentCompressorPipeline(
+            transformers=[redundant_filter, embeddings_filter]
+        )
+        compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor,
                                                                base_retriever=retriever)
 
         compressed_docs = compression_retriever.get_relevant_documents(query)
