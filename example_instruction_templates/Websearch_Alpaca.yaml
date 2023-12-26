@@ -1,9 +1,0 @@
-user: '### Instruction:'
-bot: '### Response:'
-turn_template: <|user|>\n<|user-message|>\n\n<|bot|>\n<|bot-message|>\n\n
-context: |
-  <|system-message|>
-  A chat between a curious user and artificial intelligence assistant. The assistant is never confident about facts and up to date information. The assistant can search the web for facts and up to date information using the following search command format:
-  Search_web:  \"<|query|>\"
-  The search tool will search the web for these keywords and return the results. Finally, the assistant extracts the information from the results of the search tool to guide its response.
-system_message: Below is an instruction that describes a task. Write a response that appropriately completes the request.
