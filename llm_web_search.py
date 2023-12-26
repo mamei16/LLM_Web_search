@@ -55,7 +55,8 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 
 def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
-                                max_results: int, similarity_threshold: float, instant_answers: bool):
+                                max_results: int, similarity_threshold: float, instant_answers: bool,
+                                chunk_size: int):
     documents = []
     query = query.strip("\"'")
     with DDGS() as ddgs:
@@ -76,7 +77,8 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
 
     documents.extend(langchain_compressor.faiss_embedding_query_urls(query, result_urls,
                                                                      num_results=max_results,
-                                                                     similarity_threshold=similarity_threshold))
+                                                                     similarity_threshold=similarity_threshold,
+                                                                     chunk_size=chunk_size))
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
@@ -85,7 +87,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
 
 
 def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor,
-                             max_results: int, similarity_threshold: float):
+                             max_results: int, similarity_threshold: float, chunk_size: int):
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json"
     response = requests.get(url+request_str)
     response.raise_for_status()
@@ -98,7 +100,8 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
         result_urls.append(result["url"])
     documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
                                                                 num_results=max_results,
-                                                                similarity_threshold=similarity_threshold)
+                                                                similarity_threshold=similarity_threshold,
+                                                                chunk_size=chunk_size)
     return docs_to_pretty_str(documents)
 
 

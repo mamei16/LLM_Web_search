@@ -30,7 +30,8 @@ params = {
     "display search results in chat": True,
     "display extracted URL content in chat": True,
     "searxng url": "",
-    "cpu only": False
+    "cpu only": False,
+    "chunk size": 500,
 }
 langchain_compressor = LangchainCompressor()
 update_history = None
@@ -145,6 +146,9 @@ def ui():
                                        value=params["search results per query"], precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
                                                    value=params["langchain similarity score threshold"])
+        chunk_size = gr.Number(label="Chunk size (Basically, the size of the indivdiual chunks that each webpage will"
+                                     " be split into)", minimum=2, maximum=10000, value=params["chunk size"],
+                               precision=0)
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=params["searxng url"])
@@ -156,6 +160,7 @@ def ui():
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
                                           langchain_similarity_threshold, None)
+    chunk_size.change(lambda x: params.update({"chunk size": x}), chunk_size, None)
     result_radio.change(update_result_type_setting, result_radio, None)
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
@@ -198,6 +203,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
+    chunk_size = params["chunk size"]
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
     searxng_url = params["searxng url"]
@@ -230,14 +236,16 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           langchain_compressor,
                                                           max_search_results,
                                                           similarity_score_threshold,
-                                                          instant_answers)] = search_term
+                                                          instant_answers,
+                                                          chunk_size)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,
                                                           searxng_url,
                                                           langchain_compressor,
                                                           max_search_results,
-                                                          similarity_score_threshold)] = search_term
+                                                          similarity_score_threshold,
+                                                          chunk_size)] = search_term
 
             search_re_match = compiled_open_url_command_regex.search(reply)
             if search_re_match is not None:

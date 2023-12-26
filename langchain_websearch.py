@@ -47,7 +47,7 @@ class LangchainCompressor:
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device})
 
     def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
-                                   similarity_threshold: float = 0.5) -> list[Document]:
+                                   similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
         documents = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -62,7 +62,7 @@ class LangchainCompressor:
         if not documents:
             return documents
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=10,
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10,
                                                        separators=["\n\n", "\n", ".", ", ", " ", ""])
         texts = text_splitter.split_documents(documents)
 
