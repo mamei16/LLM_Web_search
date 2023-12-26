@@ -56,7 +56,7 @@ def save_settings():
     global params
     extension_path = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(extension_path, "settings.json"), "w") as f:
-        json.dump(params, f)
+        json.dump(params, f, indent=4)
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return gr.HTML(f'<font color="green"> Settings were saved at {current_datetime}</font>',
                    visible=True)
@@ -308,12 +308,11 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             if display_webpage_content:
                 yield reply
 
-    substring_dict = chat.get_turn_substrings(state, instruct=True)
     if web_search or read_webpage:
         display_results = (web_search and display_search_results or
                            read_webpage and display_webpage_content)
         # Add results to context and continue model output
-        new_question = f"{question}{reply}\n\n{substring_dict['bot_turn_stripped']}{state['name2']}:\n"
+        new_question = chat.generate_chat_prompt(f"{question}{reply}", state)
         new_reply = ""
         for new_reply in generate_func(new_question, new_question, seed, state,
                                        stopping_strings, is_chat=is_chat):
