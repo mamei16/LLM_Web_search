@@ -56,7 +56,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
                                 max_results: int, similarity_threshold: float, instant_answers: bool,
-                                chunk_size: int):
+                                chunk_size: int, num_results_to_process: int):
     documents = []
     query = query.strip("\"'")
     with DDGS() as ddgs:
@@ -71,7 +71,8 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
 
         results = []
         result_urls = []
-        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None, max_results=max_results):
+        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
+                                max_results=num_results_to_process):
             results.append(result)
             result_urls.append(result["href"])
 

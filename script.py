@@ -32,6 +32,7 @@ params = {
     "searxng url": "",
     "cpu only": False,
     "chunk size": 500,
+    "duckduckgo results per query": 10,
 }
 langchain_compressor = LangchainCompressor()
 update_history = None
@@ -142,8 +143,10 @@ def ui():
 
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
-        num_search_results = gr.Number(label="Max. search results per query", minimum=1, maximum=100,
+        num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=params["search results per query"], precision=0)
+        num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
+                                               maximum=100, value=params["duckduckgo results per query"], precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
                                                    value=params["langchain similarity score threshold"])
         chunk_size = gr.Number(label="Chunk size (Basically, the size of the indivdiual chunks that each webpage will"
@@ -158,6 +161,8 @@ def ui():
     use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
+    num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
+                                      num_process_search_results, None)
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
                                           langchain_similarity_threshold, None)
     chunk_size.change(lambda x: params.update({"chunk size": x}), chunk_size, None)
@@ -200,6 +205,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_url = {}
     matched_patterns = {}
     max_search_results = int(params["search results per query"])
+    num_duckduckgo_search_results = int(params["duckduckgo results per query"])
     instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
@@ -237,7 +243,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           max_search_results,
                                                           similarity_score_threshold,
                                                           instant_answers,
-                                                          chunk_size)] = search_term
+                                                          chunk_size,
+                                                          num_duckduckgo_search_results)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,
