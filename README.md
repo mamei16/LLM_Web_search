@@ -6,15 +6,20 @@ is used to extract the relevant parts (if any) of each web page in the search re
 output.
 ![llm_websearch](https://github.com/mamei16/LLM_Web_search/assets/25900898/f9d2d83c-e3cf-4f69-91c2-e9c3fe0b7d89)
 ## Installation
-
-1. Update the conda environment in which you installed the dependencies of 
-[oobabooga's text-generation-webui](https://github.com/oobabooga/text-generation-webui),
-by running `conda env update -n <your_environment> --file environment.yml`
-
-2. Create a new folder inside `text-generation-webui/extensions/` and name it `llm_web_search` 
-2. Copy all python files from this project into the new folder
-3. Launch the Web UI with:  
-```python server.py --extension llm_web_search```
+1. Go to the "Session" tab of the web UI and use "Install or update an extension" 
+to download the latest code for this extension.
+2. Open the subfolder `text-generation-webui/extensions/LLM_Web_search` 
+in a terminal or conda shell.
+3. Update the conda environment in which you installed the dependencies of 
+[oobabooga's text-generation-webui](https://github.com/oobabooga/text-generation-webui).
+If you used the one-click install method, run the command 
+`conda env update -p <path_to_your_environment> --file environment.yml`,
+where you need to replace `<path_to_your_environment>` with the path to the 
+`/installer_files/env` subfolder within the text-generation-webui folder.
+Otherwise, if you made your own environment, 
+use `conda env update -n <name_of_your_environment> --file environment.yml`
+4. Launch the Web UI with:  
+```python server.py --extension LLM_Web_search```
 
 If the installation was successful and the extension was loaded, a new tab with the 
 title "LLM Web Search" should be visible in the web UI.
@@ -34,7 +39,7 @@ The default regular expression is:
 Search_web: "(.*)"
 ```
 Where `Search_web` is the search command and everything between the subsequent quotation marks
-will be used as the search query. Note that every custom regular expression must use a
+will be used as the search query. Every custom regular expression must use a
 [capture group](https://www.regular-expressions.info/brackets.html) to extract the search
 query. I recommend https://www.debuggex.com/ to try out custom regular expressions. If a regex
 fulfills the requirement above, the search query should be matched by "Group 1" in Debuggex.
@@ -42,8 +47,12 @@ fulfills the requirement above, the search query should be matched by "Group 1" 
 Here is an example of a more flexible, but more complex, regex that works for several
 different models:
 ```regexp
-Search_web: ?(?:["'])(.*)(?:["'])
+Search_web: *(?:["'])(.*)(?:["'])
 ```
+Note: Since the text in each chat message shown in the web UI is rendered as markdown, multiple
+spaces are shown as a single space. So, if you think a specific LLM reply should have been
+matched by the regex, but wasn't, try allowing multiple spaces to be matched 
+(as shown in the regex above).
 ### Reading web pages
 Experimental support exists for extracting the full text content from a webpage. The default regex to use this
 functionality is:
