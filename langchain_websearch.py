@@ -106,6 +106,6 @@ def load_url(url: str) -> Document:
     for script in soup(["script", "style"]):
         script.extract()
 
-    strings = '\n'.join([s.strip() for s in soup.stripped_strings])#
+    strings = '\n'.join([s.strip() for s in soup.stripped_strings])
     webpage_document = Document(page_content=strings, metadata={"source": url})
     return webpage_document

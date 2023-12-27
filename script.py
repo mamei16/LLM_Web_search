@@ -363,22 +363,23 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             if display_search_results:
                 yield reply
                 time.sleep(0.041666666666666664)
-            search_result_str = ""
+            result_count = 0
             for i, future in enumerate(concurrent.futures.as_completed(future_to_search_term)):
                 search_term = future_to_search_term[future]
                 try:
                     data = future.result()
                 except Exception as exc:
                     exception_message = str(exc)
+                    result_count = -max_search_results
                     reply += f"The search tool encountered an error: {exception_message}"
                     print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
                 else:
-                    search_result_str += data
+                    result_count += 1
                     reply += data
                     if display_search_results:
                         yield reply
                         time.sleep(0.041666666666666664)
-            if search_result_str == "":
+            if result_count == 0:
                 reply += f"\nThe search tool did not return any results."
             reply += "```"
             if display_search_results:
