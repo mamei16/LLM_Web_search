@@ -59,7 +59,7 @@ class LangchainCompressor:
 
         #  This sparse retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
-        bm25_retriever = BM25Retriever.from_documents(texts, preprocess_func=lambda t: t.replace("\n", " \n"))
+        bm25_retriever = BM25Retriever.from_documents(texts, preprocess_func=self.preprocess_text)
         bm25_retriever.k = num_results
 
         redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
