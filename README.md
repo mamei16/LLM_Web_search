@@ -30,8 +30,19 @@ information about extensions.
 ## Usage
 
 Search queries are extracted from the model's output using a regular expression. This is made easier by prompting the model
-to use a fixed search command (see `example_instruction_templates/` for example prompts).   
+to use a fixed search command (see `system_prompts/` for example prompts).   
 Currently, only a single search query per model chat message is supported.
+
+An example workflow of using this extension could be:
+1. Load a model
+2. Load a matching instruction template
+3. Head over to the "LLM Web search" tab
+4. Load a custom system message/prompt
+5. Ensure that the query part of the command mentioned in the system message 
+can be matched using the current "Search command regex string" 
+(see "Using a custom regular expression" below)
+6. Pick a hyperparameter generation preset that works well for you.
+7. Choose "chat-instruct" or "instruct" mode and start chatting
 
 ### Using a custom regular expression
 The default regular expression is:  
