@@ -8,12 +8,14 @@ from datetime import datetime
 import gradio as gr
 
 import modules.shared as shared
-from modules import chat
+from modules import chat, ui as ui_module
 import torch
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
 from .langchain_websearch import LangchainCompressor
 
+
+refresh_symbol = '🔄'
 
 params = {
     "display_name": "LLM Web Search",
@@ -34,6 +36,7 @@ params = {
     "chunk size": 500,
     "duckduckgo results per query": 10,
 }
+extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = LangchainCompressor()
 update_history = None
 
@@ -44,19 +47,22 @@ def setup():
     :return:
     """
     global params
+
     try:
-        extension_path = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(extension_path, "settings.json"), "r") as f:
             saved_params = json.load(f)
         params.update(saved_params)
     except FileNotFoundError:
         pass
+
+    if not os.path.exists(os.path.join(extension_path, "system_prompts")):
+        os.makedirs(os.path.join(extension_path, "system_prompts"))
+
     toggle_extension(params["enable"])
 
 
 def save_settings():
     global params
-    extension_path = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(extension_path, "settings.json"), "w") as f:
         json.dump(params, f, indent=4)
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -75,6 +81,53 @@ def toggle_extension(_enable: bool):
             del langchain_compressor.embeddings.client
             torch.cuda.empty_cache()
     params.update({"enable": _enable})
+
+
+def get_available_system_prompts():
+    try:
+        return ["None"] + sorted(os.listdir(os.path.join(extension_path, "system_prompts")))
+    except FileNotFoundError:
+        return ["None"]
+
+
+def load_system_prompt(filename):
+    if not filename:
+        return
+    if filename == "None":
+        return ""
+    with open(os.path.join(extension_path, "system_prompts", filename), "r") as f:
+        prompt_str = f.read()
+    shared.settings['custom_system_message'] = prompt_str
+    return prompt_str
+
+
+def save_system_prompt(filename, prompt):
+    if not filename:
+        return
+
+    with open(os.path.join(extension_path, "system_prompts", filename), "w") as f:
+        f.write(prompt)
+
+    return gr.HTML(f'<font color="green"> Saved successfully</font>',
+                   visible=True)
+
+
+def check_file_exists(filename):
+    if filename == "":
+        return gr.HTML("", visible=False)
+    if os.path.exists(os.path.join(extension_path, "system_prompts", filename)):
+        return gr.HTML(f'<font color="orange"> Warning: Filename already exists</font>', visible=True)
+    return gr.HTML("", visible=False)
+
+
+def timeout_save_message():
+    time.sleep(2)
+    return gr.HTML("", visible=False)
+
+
+def deactivate_system_prompt():
+    shared.settings['custom_system_message'] = None
+    return "None"
 
 
 def ui():
@@ -140,7 +193,25 @@ def ui():
                                        label='Display search results in chat')
             show_url_content = gr.Checkbox(value=params['display extracted URL content in chat'],
                                            label='Display extracted URL content in chat')
-
+    gr.Markdown(value='---')
+    with gr.Row():
+        with gr.Column():
+            gr.Markdown(value='#### Load custom system message\n'
+                              'Select a saved custom system message from within the system_prompts folder or "None" '
+                              'to clear the selection')
+            system_prompt = gr.Dropdown(choices=get_available_system_prompts(), label="Select custom system message",
+                                        value='Select custom system message to load...', elem_classes='slim-dropdown')
+            ui_module.create_refresh_button(system_prompt, lambda: None,
+                                            lambda: {'choices': get_available_system_prompts()},
+                                            'refresh-button', interactive=True)
+        with gr.Column():
+            gr.Markdown(value='#### Create custom system message')
+            system_prompt_text = gr.Textbox(label="Custom system message", lines=3)
+            sys_prompt_filename = gr.Text(label="Filename")
+            sys_prompt_save_button = gr.Button("Save Custom system message")
+            system_prompt_saved_success_elem = gr.HTML("", visible=False)
+            
+    gr.Markdown(value='---')
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
@@ -152,6 +223,7 @@ def ui():
         chunk_size = gr.Number(label="Chunk size (Basically, the size of the indivdiual chunks that each webpage will"
                                      " be split into)", minimum=2, maximum=10000, value=params["chunk size"],
                                precision=0)
+
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=params["searxng url"])
@@ -180,6 +252,17 @@ def ui():
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
                             None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
+
+    system_prompt.change(load_system_prompt, system_prompt, shared.gradio['custom_system_message'])
+    system_prompt.change(load_system_prompt, system_prompt, system_prompt_text)
+    sys_prompt_filename.change(check_file_exists, sys_prompt_filename, system_prompt_saved_success_elem)
+    sys_prompt_save_button.click(save_system_prompt, [sys_prompt_filename, system_prompt_text],
+                                 system_prompt_saved_success_elem,
+                                 show_progress=False).then(timeout_save_message,
+                                                           None,
+                                                           system_prompt_saved_success_elem,
+                                                           show_progress=False).then(lambda: "", None,
+                                                                                     sys_prompt_filename)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
