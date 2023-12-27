@@ -111,9 +111,9 @@ def get_webpage_content(url: str) -> str:
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'}
     response = requests.get(url, headers=headers)
 
-    soup = BeautifulSoup(response.content, 'html.parser')
-    content = ""
-    for p in soup.find_all('p'):
-        content += p.get_text() + "\n"
-    return content
+    soup = BeautifulSoup(response.content, features="lxml")
+    for script in soup(["script", "style"]):
+        script.extract()
 
+    strings = soup.stripped_strings
+    return '\n'.join([s.strip() for s in strings])
