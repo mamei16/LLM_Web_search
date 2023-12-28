@@ -35,6 +35,7 @@ params = {
     "cpu only": False,
     "chunk size": 500,
     "duckduckgo results per query": 10,
+    "append current datetime": False,
 }
 extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = LangchainCompressor()
@@ -97,6 +98,10 @@ def load_system_prompt(filename):
         return ""
     with open(os.path.join(extension_path, "system_prompts", filename), "r") as f:
         prompt_str = f.read()
+
+    if params["append current datetime"]:
+        prompt_str += f"\nDate and time of conversation: {datetime.now().strftime('%A %d %B %Y %H:%M')}"
+
     shared.settings['custom_system_message'] = prompt_str
     return prompt_str
 
@@ -204,6 +209,8 @@ def ui():
             ui_module.create_refresh_button(system_prompt, lambda: None,
                                             lambda: {'choices': get_available_system_prompts()},
                                             'refresh-button', interactive=True)
+            append_datetime = gr.Checkbox(value=params['append current datetime'],
+                                          label='Append current date and time when loading custom system message')
         with gr.Column():
             gr.Markdown(value='#### Create custom system message')
             system_prompt_text = gr.Textbox(label="Custom system message", lines=3)
@@ -263,6 +270,7 @@ def ui():
                                                            system_prompt_saved_success_elem,
                                                            show_progress=False).then(lambda: "", None,
                                                                                      sys_prompt_filename)
+    append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
