@@ -88,27 +88,40 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
 
 
 def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor,
-                             max_results: int, similarity_threshold: float, chunk_size: int):
-    request_str = f"/search?q={urllib.parse.quote(query)}&format=json"
-    response = requests.get(url+request_str)
-    response.raise_for_status()
-    try:
-        result_dict = response.json()
-    except JSONDecodeError:
-        raise ValueError("JSONDecodeError: Please ensure that the SearXNG instance can return data in JSON format")
+                             max_results: int, similarity_threshold: float, chunk_size: int,
+                             num_results_to_process: int):
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
+               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+               "Accept-Language": "en-US,en;q=0.5"}
     result_urls = []
-    for result in result_dict["results"]:
-        result_urls.append(result["url"])
+    request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
+    pageno = 1
+    while len(result_urls) < num_results_to_process:
+        response = requests.get(url+request_str+str(pageno), headers=headers)
+        if not result_urls:     # no results to lose by raising an exception here
+            response.raise_for_status()
+        try:
+            response_dict = response.json()
+        except JSONDecodeError:
+            raise ValueError("JSONDecodeError: Please ensure that the SearXNG instance can return data in JSON format")
+        result_dicts = response_dict["results"]
+        if not result_dicts:
+            break
+        for result in result_dicts:
+            result_urls.append(result["url"])
+        pageno += 1
+
     documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
-                                                                num_results=max_results,
+                                                                num_results=num_results_to_process,
                                                                 similarity_threshold=similarity_threshold,
                                                                 chunk_size=chunk_size)
-    return docs_to_pretty_str(documents)
+    return docs_to_pretty_str(documents[:max_results])
 
 
 def get_webpage_content(url: str) -> str:
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'}
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
+               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+               "Accept-Language": "en-US,en;q=0.5"}
     response = requests.get(url, headers=headers)
 
     soup = BeautifulSoup(response.content, features="lxml")

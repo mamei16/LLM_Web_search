@@ -296,7 +296,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_url = {}
     matched_patterns = {}
     max_search_results = int(params["search results per query"])
-    num_duckduckgo_search_results = int(params["duckduckgo results per query"])
+    num_search_results_to_process = int(params["duckduckgo results per query"])
     instant_answers = params["instant answers"]
     #regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
@@ -335,7 +335,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           similarity_score_threshold,
                                                           instant_answers,
                                                           chunk_size,
-                                                          num_duckduckgo_search_results)] = search_term
+                                                          num_search_results_to_process)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,
@@ -343,7 +343,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           langchain_compressor,
                                                           max_search_results,
                                                           similarity_score_threshold,
-                                                          chunk_size)] = search_term
+                                                          chunk_size,
+                                                          num_search_results_to_process)] = search_term
 
             search_re_match = compiled_open_url_command_regex.search(reply)
             if search_re_match is not None:
