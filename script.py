@@ -32,7 +32,7 @@ params = {
     "display search results in chat": True,
     "display extracted URL content in chat": True,
     "searxng url": "",
-    "cpu only": False,
+    "cpu only": True,
     "chunk size": 500,
     "duckduckgo results per query": 10,
     "append current datetime": False,
