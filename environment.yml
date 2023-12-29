@@ -3,7 +3,6 @@ channels:
   - conda-forge
   - pytorch
 dependencies:
-- python >=3.8,<3.11  # faiss packages are built for Python versions 3.8-3.10
 - pip
 - faiss-cpu=1.7.4
 - pip:
