@@ -38,7 +38,7 @@ params = {
     "append current datetime": False,
 }
 extension_path = os.path.dirname(os.path.abspath(__file__))
-langchain_compressor = LangchainCompressor()
+langchain_compressor = None
 update_history = None
 
 
@@ -54,7 +54,7 @@ def setup():
             saved_params = json.load(f)
         params.update(saved_params)
     except FileNotFoundError:
-        pass
+        save_settings()
 
     if not os.path.exists(os.path.join(extension_path, "system_prompts")):
         os.makedirs(os.path.join(extension_path, "system_prompts"))
