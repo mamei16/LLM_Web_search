@@ -17,7 +17,8 @@ If you used the one-click install method, run the command
 where you need to replace `<path_to_your_environment>` with the path to the 
 `/installer_files/env` subfolder within the text-generation-webui folder.
 Otherwise, if you made your own environment, 
-use `conda env update -n <name_of_your_environment> --file environment.yml`
+use `conda env update -n <name_of_your_environment> --file environment.yml`  
+   (NB: Solving the environment will take a while)
 4. Launch the Web UI with:  
 ```python server.py --extension LLM_Web_search```
 
