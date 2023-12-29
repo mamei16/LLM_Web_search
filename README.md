@@ -1,9 +1,12 @@
 # Give your local LLM the ability to search the web!
 This project gives local LLMs the ability to search the web by outputting a specific
-command. Once the command has found in the model output using a regular expression, [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
-is used to search the web and return a number of result pages. Finally, LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/)
-is used to extract the relevant parts (if any) of each web page in the search results and the results are appended to the model's
-output.
+command. Once the command has found in the model output using a regular expression,
+[duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
+is used to search the web and return a number of result pages. Finally, an
+ensemble of LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/) and 
+[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25)
+is used to extract the relevant parts (if any) of each web page in the search results
+and the results are appended to the model's output.
 ![llm_websearch](https://github.com/mamei16/LLM_Web_search/assets/25900898/f9d2d83c-e3cf-4f69-91c2-e9c3fe0b7d89)
 ## Installation
 1. Go to the "Session" tab of the web UI and use "Install or update an extension" 
