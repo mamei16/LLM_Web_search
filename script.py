@@ -383,11 +383,12 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                     reply += f"The search tool encountered an error: {exception_message}"
                     print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
                 else:
-                    result_count += 1
-                    reply += data
-                    if display_search_results:
-                        yield reply
-                        time.sleep(0.041666666666666664)
+                    if data != "":
+                        result_count += 1
+                        reply += data
+                        if display_search_results:
+                            yield reply
+                            time.sleep(0.041666666666666664)
             if result_count == 0:
                 reply += f"\nThe search tool did not return any results."
             reply += "```"
