@@ -48,9 +48,9 @@ class LangchainCompressor:
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10,
                                                        separators=["\n\n", "\n", ".", ", ", " ", ""])
-        texts = text_splitter.split_documents(documents)
+        split_docs = text_splitter.split_documents(documents)
 
-        faiss_retriever = FAISS.from_documents(texts, self.embeddings).as_retriever(
+        faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": num_results}
         )
         if not BM25Retriever:
@@ -59,7 +59,7 @@ class LangchainCompressor:
 
         #  This sparse retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
-        bm25_retriever = BM25Retriever.from_documents(texts, preprocess_func=self.preprocess_text)
+        bm25_retriever = BM25Retriever.from_documents(split_docs, preprocess_func=self.preprocess_text)
         bm25_retriever.k = num_results
 
         redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
@@ -68,6 +68,7 @@ class LangchainCompressor:
         pipeline_compressor = DocumentCompressorPipeline(
             transformers=[redundant_filter, embeddings_filter]
         )
+
         compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor,
                                                                base_retriever=faiss_retriever)
 
