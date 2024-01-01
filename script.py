@@ -78,8 +78,9 @@ def toggle_extension(_enable: bool):
         compressor_model = langchain_compressor.embeddings.client
         compressor_model.to(compressor_model._target_device)
     else:
-        if not params["cpu only"]:  # free some VRAM
-            del langchain_compressor.embeddings.client
+        if not params["cpu only"] and 'langchain_compressor' in globals():  # free some VRAM
+            if hasattr(langchain_compressor, 'embeddings'):
+                del langchain_compressor.embeddings.client
             torch.cuda.empty_cache()
     params.update({"enable": _enable})
 
