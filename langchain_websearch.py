@@ -32,24 +32,25 @@ class LangchainCompressor:
 
     def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
                                    similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
-        documents = []
+        html_url_tupls = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_url = {executor.submit(load_url, url): url for url in url_list}
+            future_to_url = {executor.submit(download_html, url): url for url in url_list}
             for future in concurrent.futures.as_completed(future_to_url, timeout=10):
                 url = future_to_url[future]
                 try:
-                    documents.append(future.result())
+                    html_url_tupls.append((future.result(), url))
                 except Exception as exc:
                     print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
 
-        if not documents:
-            return documents
+        if not html_url_tupls:
+            return []
 
+        documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10,
                                                        separators=["\n\n", "\n", ".", ", ", " ", ""])
         split_docs = text_splitter.split_documents(documents)
-
+        # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": num_results}
         )
@@ -91,7 +92,7 @@ def docs_to_pretty_str(docs) -> str:
     return ret_str
 
 
-def load_url(url: str) -> Document:
+def download_html(url: str) -> bytes:
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
@@ -102,8 +103,11 @@ def load_url(url: str) -> Document:
     content_type = response.headers.get("Content-Type", "")
     if not content_type.startswith("text/html"):
         raise ValueError(f"Expected content type text/html. Got {content_type}.")
+    return response.content
 
-    soup = BeautifulSoup(response.content, features="lxml")
+
+def html_to_plaintext_doc(html_text: str or bytes, url: str) -> Document:
+    soup = BeautifulSoup(html_text, features="lxml")
     for script in soup(["script", "style"]):
         script.extract()
 
