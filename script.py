@@ -6,10 +6,10 @@ import os
 from datetime import datetime
 
 import gradio as gr
+import torch
 
 import modules.shared as shared
 from modules import chat, ui as ui_module
-import torch
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
 from .langchain_websearch import LangchainCompressor
