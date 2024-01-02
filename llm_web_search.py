@@ -1,7 +1,7 @@
-import requests
-from requests.exceptions import JSONDecodeError
 import urllib
 
+import requests
+from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 from langchain.schema import Document
