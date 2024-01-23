@@ -51,10 +51,10 @@ can be matched using the current "Search command regex string"
 ### Using a custom regular expression
 The default regular expression is:  
 ```regexp
-Search_web: "(.*)"
+Search_web\("(.*)"\)
 ```
-Where `Search_web` is the search command and everything between the subsequent quotation marks
-will be used as the search query. Every custom regular expression must use a
+Where `Search_web` is the search command and everything between the quotation marks
+inside the parentheses will be used as the search query. Every custom regular expression must use a
 [capture group](https://www.regular-expressions.info/brackets.html) to extract the search
 query. I recommend https://www.debuggex.com/ to try out custom regular expressions. If a regex
 fulfills the requirement above, the search query should be matched by "Group 1" in Debuggex.
@@ -62,7 +62,7 @@ fulfills the requirement above, the search query should be matched by "Group 1" 
 Here is an example of a more flexible, but more complex, regex that works for several
 different models:
 ```regexp
-Search_web: *(?:["'])(.*)(?:["'])
+[Ss]earch_web\((?:["'])(.*)(?:["'])\)
 ```
 Note: Since the text in each chat message shown in the web UI is rendered as markdown, multiple
 spaces are shown as a single space. So, if you think a specific LLM reply should have been
@@ -72,7 +72,7 @@ matched by the regex, but wasn't, try allowing multiple spaces to be matched
 Experimental support exists for extracting the full text content from a webpage. The default regex to use this
 functionality is:
 ```regexp
-Open_url: "(.*)"
+Open_url\("(.*)"\)
 ```
 **Note**: The full content of a web page is likely to exceed the maximum context length of your average local LLM.
 ## Search backends
