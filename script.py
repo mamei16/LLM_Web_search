@@ -211,8 +211,10 @@ def ui():
             gr.Markdown(value='#### Load custom system message\n'
                               'Select a saved custom system message from within the system_prompts folder or "None" '
                               'to clear the selection')
-            system_prompt = gr.Dropdown(choices=get_available_system_prompts(), label="Select custom system message",
-                                        value='Select custom system message to load...', elem_classes='slim-dropdown')
+            system_prompt = gr.Dropdown(
+                choices=get_available_system_prompts(), label="Select custom system message",
+                value=lambda: 'Select custom system message to load...' if custom_system_message_filename is None else
+                              custom_system_message_filename, elem_classes='slim-dropdown')
             with gr.Row():
                 set_system_message_as_default = gr.Checkbox(value=lambda: params['default system prompt filename'],
                                                             label='Set this custom system message as the default')
