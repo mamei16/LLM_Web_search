@@ -79,7 +79,7 @@ def toggle_extension(_enable: bool):
         langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda")
         compressor_model = langchain_compressor.embeddings.client
         compressor_model.to(compressor_model._target_device)
-        custom_system_message_filename = params["default system prompt filename"]
+        custom_system_message_filename = params.get("default system prompt filename")
     else:
         if not params["cpu only"] and 'langchain_compressor' in globals():  # free some VRAM
             if hasattr(langchain_compressor, 'embeddings'):
