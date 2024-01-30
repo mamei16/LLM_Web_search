@@ -36,6 +36,7 @@ params = {
     "chunk size": 500,
     "duckduckgo results per query": 10,
     "append current datetime": False,
+    "default system prompt filename": None
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -73,11 +74,12 @@ def save_settings():
 
 
 def toggle_extension(_enable: bool):
-    global langchain_compressor
+    global langchain_compressor, custom_system_message_filename
     if _enable:
         langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda")
         compressor_model = langchain_compressor.embeddings.client
         compressor_model.to(compressor_model._target_device)
+        custom_system_message_filename = params["default system prompt filename"]
     else:
         if not params["cpu only"] and 'langchain_compressor' in globals():  # free some VRAM
             if hasattr(langchain_compressor, 'embeddings'):
@@ -211,10 +213,13 @@ def ui():
                               'to clear the selection')
             system_prompt = gr.Dropdown(choices=get_available_system_prompts(), label="Select custom system message",
                                         value='Select custom system message to load...', elem_classes='slim-dropdown')
-            ui_module.create_refresh_button(system_prompt, lambda: None,
-                                            lambda: {'choices': get_available_system_prompts()},
-                                            'refresh-button', interactive=True)
-            append_datetime = gr.Checkbox(value=params['append current datetime'],
+            with gr.Row():
+                set_system_message_as_default = gr.Checkbox(value=lambda: params['default system prompt filename'],
+                                                            label='Set this custom system message as the default')
+                ui_module.create_refresh_button(system_prompt, lambda: None,
+                                                lambda: {'choices': get_available_system_prompts()},
+                                                'refresh-button', interactive=True)
+            append_datetime = gr.Checkbox(value=lambda: params['append current datetime'],
                                           label='Append current date and time when loading custom system message')
         with gr.Column():
             gr.Markdown(value='#### Create custom system message')
@@ -278,6 +283,9 @@ def ui():
                                                            show_progress=False).then(lambda: "", None,
                                                                                      sys_prompt_filename)
     append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
+    set_system_message_as_default.change(lambda x: params.update({
+        "default system prompt filename": custom_system_message_filename}), set_system_message_as_default, None)
+
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
