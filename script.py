@@ -37,6 +37,7 @@ params = {
     "duckduckgo results per query": 10,
     "append current datetime": False,
 }
+custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = None
 update_history = None
@@ -93,9 +94,11 @@ def get_available_system_prompts():
 
 
 def load_system_prompt(filename):
+    global custom_system_message_filename
     if not filename:
         return
-    if filename == "None":
+    if filename == "None" or filename == "Select custom system message to load...":
+        custom_system_message_filename = None
         return ""
     with open(os.path.join(extension_path, "system_prompts", filename), "r") as f:
         prompt_str = f.read()
@@ -104,6 +107,7 @@ def load_system_prompt(filename):
         prompt_str += f"\nDate and time of conversation: {datetime.now().strftime('%A %d %B %Y %H:%M')}"
 
     shared.settings['custom_system_message'] = prompt_str
+    custom_system_message_filename = filename
     return prompt_str
 
 
@@ -167,8 +171,8 @@ def ui():
                                                 visible=True)}
 
     with gr.Row():
-        enable = gr.Checkbox(value=params['enable'], label='Enable LLM web search')
-        use_cpu_only = gr.Checkbox(value=params['cpu only'],
+        enable = gr.Checkbox(value=lambda: params['enable'], label='Enable LLM web search')
+        use_cpu_only = gr.Checkbox(value=lambda: params['cpu only'],
                                    label='Run extension on CPU only '
                                          '(Save settings and restart for the change to take effect)')
         with gr.Column():
@@ -179,25 +183,25 @@ def ui():
         result_radio = gr.Radio(
             ["Regular results", "Regular results and instant answers"],
             label="What kind of search results should be returned?",
-            value="Regular results and instant answers" if (params["regular search results"]
-                                                            and params["instant answers"]) else "Regular results"
+            value=lambda: "Regular results and instant answers" if
+                          (params["regular search results"] and params["instant answers"]) else "Regular results"
         )
         with gr.Column():
             search_command_regex = gr.Textbox(label="Search command regex string",
                                               placeholder=params["default search command regex"],
-                                              value=params["search command regex"])
+                                              value=lambda: params["search command regex"])
             search_command_regex_error_label = gr.HTML("", visible=False)
 
         with gr.Column():
             open_url_command_regex = gr.Textbox(label="Open URL command regex string",
                                                 placeholder=params["default open url command regex"],
-                                                value=params["open url command regex"])
+                                                value=lambda: params["open url command regex"])
             open_url_command_regex_error_label = gr.HTML("", visible=False)
 
         with gr.Column():
-            show_results = gr.Checkbox(value=params['display search results in chat'],
+            show_results = gr.Checkbox(value=lambda: params['display search results in chat'],
                                        label='Display search results in chat')
-            show_url_content = gr.Checkbox(value=params['display extracted URL content in chat'],
+            show_url_content = gr.Checkbox(value=lambda: params['display extracted URL content in chat'],
                                            label='Display extracted URL content in chat')
     gr.Markdown(value='---')
     with gr.Row():
@@ -214,7 +218,8 @@ def ui():
                                           label='Append current date and time when loading custom system message')
         with gr.Column():
             gr.Markdown(value='#### Create custom system message')
-            system_prompt_text = gr.Textbox(label="Custom system message", lines=3)
+            system_prompt_text = gr.Textbox(label="Custom system message", lines=3,
+                                            value=lambda: load_system_prompt(custom_system_message_filename))
             sys_prompt_filename = gr.Text(label="Filename")
             sys_prompt_save_button = gr.Button("Save Custom system message")
             system_prompt_saved_success_elem = gr.HTML("", visible=False)
@@ -223,18 +228,19 @@ def ui():
     with gr.Accordion("Advanced settings", open=False):
         gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
-                                       value=params["search results per query"], precision=0)
+                                       value=lambda: params["search results per query"], precision=0)
         num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
-                                               maximum=100, value=params["duckduckgo results per query"], precision=0)
+                                               maximum=100, value=lambda: params["duckduckgo results per query"],
+                                               precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
-                                                   value=params["langchain similarity score threshold"])
+                                                   value=lambda: params["langchain similarity score threshold"])
         chunk_size = gr.Number(label="Chunk size (Basically, the size of the indivdiual chunks that each webpage will"
-                                     " be split into)", minimum=2, maximum=10000, value=params["chunk size"],
+                                     " be split into)", minimum=2, maximum=10000, value=lambda: params["chunk size"],
                                precision=0)
 
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
-                                 value=params["searxng url"])
+                                 value=lambda: params["searxng url"])
 
     # Event functions to update the parameters in the backend
     enable.change(toggle_extension, enable, None)
