@@ -148,6 +148,9 @@ def ui():
     Creates custom gradio elements when the UI is launched.
     :return:
     """
+    # Inject custom system message into the main textbox if a default one is set
+    shared.gradio['custom_system_message'].value = load_system_prompt(custom_system_message_filename)
+
     def update_result_type_setting(choice: str):
         if choice == "Instant answers":
             params.update({"instant answers": True})
@@ -288,7 +291,6 @@ def ui():
     append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
     set_system_message_as_default.change(lambda x: params.update({
         "default system prompt filename": custom_system_message_filename}), set_system_message_as_default, None)
-
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
