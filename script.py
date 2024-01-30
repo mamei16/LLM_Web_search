@@ -55,6 +55,7 @@ def setup():
         with open(os.path.join(extension_path, "settings.json"), "r") as f:
             saved_params = json.load(f)
         params.update(saved_params)
+        save_settings()   # add keys of newly added feature to settings.json
     except FileNotFoundError:
         save_settings()
 
