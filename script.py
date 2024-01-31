@@ -176,6 +176,12 @@ def ui():
             return {error_html_element: gr.HTML(f'<font color="red"> Invalid regex. {str(e).capitalize()}</font>',
                                                 visible=True)}
 
+    def update_default_custom_system_message(check: bool):
+        if check:
+            params.update({"default system prompt filename": custom_system_message_filename})
+        else:
+            params.update({"default system prompt filename": None})
+
     with gr.Row():
         enable = gr.Checkbox(value=lambda: params['enable'], label='Enable LLM web search')
         use_cpu_only = gr.Checkbox(value=lambda: params['cpu only'],
@@ -289,8 +295,7 @@ def ui():
                                                            show_progress=False).then(lambda: "", None,
                                                                                      sys_prompt_filename)
     append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
-    set_system_message_as_default.change(lambda x: params.update({
-        "default system prompt filename": custom_system_message_filename}), set_system_message_as_default, None)
+    set_system_message_as_default.change(update_default_custom_system_message, set_system_message_as_default, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
