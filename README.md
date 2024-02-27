@@ -64,10 +64,6 @@ different models:
 ```regexp
 [Ss]earch_web\((?:["'])(.*)(?:["'])\)
 ```
-Note: Since the text in each chat message shown in the web UI is rendered as markdown, multiple
-spaces are shown as a single space. So, if you think a specific LLM reply should have been
-matched by the regex, but wasn't, try allowing multiple spaces to be matched 
-(as shown in the regex above).
 ### Reading web pages
 Experimental support exists for extracting the full text content from a webpage. The default regex to use this
 functionality is:
