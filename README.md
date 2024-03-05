@@ -1,6 +1,6 @@
 # Give your local LLM the ability to search the web!
 This project gives local LLMs the ability to search the web by outputting a specific
-command. Once the command has found in the model output using a regular expression,
+command. Once the command has been found in the model output using a regular expression,
 [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
 is used to search the web and return a number of result pages. Finally, an
 ensemble of LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/) and 
