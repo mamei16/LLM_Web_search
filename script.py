@@ -340,6 +340,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     compiled_search_command_regex = re.compile(search_command_regex)
     compiled_open_url_command_regex = re.compile(open_url_command_regex)
 
+    reply = None
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
 
