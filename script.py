@@ -286,6 +286,7 @@ def ui():
 
     system_prompt.change(load_system_prompt, system_prompt, shared.gradio['custom_system_message'])
     system_prompt.change(load_system_prompt, system_prompt, system_prompt_text)
+    system_prompt.change(lambda x: False, set_system_message_as_default, set_system_message_as_default)
     sys_prompt_filename.change(check_file_exists, sys_prompt_filename, system_prompt_saved_success_elem)
     sys_prompt_save_button.click(save_system_prompt, [sys_prompt_filename, system_prompt_text],
                                  system_prompt_saved_success_elem,
