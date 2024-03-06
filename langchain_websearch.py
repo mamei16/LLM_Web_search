@@ -2,8 +2,7 @@ import re
 import concurrent.futures
 
 import requests
-from bs4 import BeautifulSoup
-from langchain.document_transformers import EmbeddingsRedundantFilter
+from langchain.document_transformers import EmbeddingsRedundantFilter, Html2TextTransformer
 from langchain.retrievers.document_compressors import DocumentCompressorPipeline
 from langchain.retrievers.ensemble import EnsembleRetriever
 from langchain.embeddings import HuggingFaceEmbeddings
@@ -32,21 +31,22 @@ class LangchainCompressor:
 
     def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
                                    similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
-        html_url_tupls = []
+        html_docs = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             future_to_url = {executor.submit(download_html, url): url for url in url_list}
             for future in concurrent.futures.as_completed(future_to_url, timeout=10):
                 url = future_to_url[future]
                 try:
-                    html_url_tupls.append((future.result(), url))
+                    html_docs.append(Document(future.result(), metadata={"source": url}))
                 except Exception as exc:
                     print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
 
-        if not html_url_tupls:
+        if not html_docs:
             return []
 
-        documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
+        html2text_transformer = Html2TextTransformer()
+        documents = html2text_transformer.transform_documents(html_docs)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10,
                                                        separators=["\n\n", "\n", ".", ", ", " ", ""])
         split_docs = text_splitter.split_documents(documents)
@@ -104,13 +104,3 @@ def download_html(url: str) -> bytes:
     if not content_type.startswith("text/html"):
         raise ValueError(f"Expected content type text/html. Got {content_type}.")
     return response.content
-
-
-def html_to_plaintext_doc(html_text: str or bytes, url: str) -> Document:
-    soup = BeautifulSoup(html_text, features="lxml")
-    for script in soup(["script", "style"]):
-        script.extract()
-
-    strings = '\n'.join([s.strip() for s in soup.stripped_strings])
-    webpage_document = Document(page_content=strings, metadata={"source": url})
-    return webpage_document
