@@ -286,7 +286,9 @@ def ui():
 
     system_prompt.change(load_system_prompt, system_prompt, shared.gradio['custom_system_message'])
     system_prompt.change(load_system_prompt, system_prompt, system_prompt_text)
-    system_prompt.change(lambda x: False, set_system_message_as_default, set_system_message_as_default)
+    # restore checked state if chosen system prompt matches the default
+    system_prompt.change(lambda x: x == params["default system prompt filename"], system_prompt,
+                         set_system_message_as_default)
     sys_prompt_filename.change(check_file_exists, sys_prompt_filename, system_prompt_saved_success_elem)
     sys_prompt_save_button.click(save_system_prompt, [sys_prompt_filename, system_prompt_text],
                                  system_prompt_saved_success_elem,
@@ -296,7 +298,8 @@ def ui():
                                                            show_progress=False).then(lambda: "", None,
                                                                                      sys_prompt_filename)
     append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
-    set_system_message_as_default.change(update_default_custom_system_message, set_system_message_as_default, None)
+    # '.input' = only triggers when user changes the value of the component, not a function
+    set_system_message_as_default.input(update_default_custom_system_message, set_system_message_as_default, None)
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
