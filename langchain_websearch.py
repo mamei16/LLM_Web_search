@@ -12,10 +12,7 @@ from langchain.schema import Document
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_transformers import EmbeddingsRedundantFilter
-try:
-    from langchain_community.retrievers import BM25Retriever
-except ImportError:
-    BM25Retriever = None
+from langchain_community.retrievers import BM25Retriever
 
 
 class LangchainCompressor:
@@ -54,9 +51,6 @@ class LangchainCompressor:
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": num_results}
         )
-        if not BM25Retriever:
-            raise ImportError("Could not import BM25Retriever. Please ensure that you have installed "
-                              "langchain==0.1.12")
 
         #  This sparse retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.

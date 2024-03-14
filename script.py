@@ -96,7 +96,7 @@ def get_available_system_prompts():
         return ["None"]
 
 
-def load_system_prompt(filename):
+def load_system_prompt(filename: str or None):
     global custom_system_message_filename
     if not filename:
         return
@@ -327,7 +327,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     max_search_results = int(params["search results per query"])
     num_search_results_to_process = int(params["duckduckgo results per query"])
     instant_answers = params["instant answers"]
-    #regular_search_results = params["regular search results"]
+    # regular_search_results = params["regular search results"]
     similarity_score_threshold = params["langchain similarity score threshold"]
     chunk_size = params["chunk size"]
     search_command_regex = params["search command regex"]
@@ -448,8 +448,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 yield reply
 
     if web_search or read_webpage:
-        display_results = (web_search and display_search_results or
-                           read_webpage and display_webpage_content)
+        display_results = web_search and display_search_results or read_webpage and display_webpage_content
         # Add results to context and continue model output
         new_question = chat.generate_chat_prompt(f"{question}{reply}", state)
         new_reply = ""

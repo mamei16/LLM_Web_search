@@ -97,7 +97,7 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
     pageno = 1
     while len(result_urls) < num_results_to_process:
-        response = requests.get(url+request_str+str(pageno), headers=headers)
+        response = requests.get(url + request_str + str(pageno), headers=headers)
         if not result_urls:     # no results to lose by raising an exception here
             response.raise_for_status()
         try:
