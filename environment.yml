@@ -6,7 +6,7 @@ dependencies:
 - pip
 - faiss-cpu=1.7.4
 - pip:
-  - duckduckgo-search==4.1.0
+  - duckduckgo-search==5.1.0
   - beautifulsoup4==4.12.2
   - langchain==0.0.352
   - unstructured==0.6.6

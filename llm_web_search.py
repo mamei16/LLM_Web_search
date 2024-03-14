@@ -29,7 +29,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
     query = query.strip("\"'")
     with DDGS() as ddgs:
         if instant_answers:
-            answer_list = list(ddgs.answers(query))
+            answer_list = ddgs.answers(query)
         else:
             answer_list = None
         if answer_list:
@@ -61,7 +61,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     query = query.strip("\"'")
     with DDGS() as ddgs:
         if instant_answers:
-            answer_list = list(ddgs.answers(query))
+            answer_list = ddgs.answers(query)
             if answer_list:
                 max_results -= 1  # We already have 1 result now
                 answer_dict = answer_list[0]
