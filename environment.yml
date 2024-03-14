@@ -8,7 +8,7 @@ dependencies:
 - pip:
   - duckduckgo-search==5.1.0
   - beautifulsoup4==4.12.2
-  - langchain==0.0.352
+  - langchain==0.1.12
   - unstructured==0.6.6
   - rank_bm25==0.2.2
   - sentence-transformers==2.2.2

@@ -3,15 +3,15 @@ import concurrent.futures
 
 import requests
 from bs4 import BeautifulSoup
-from langchain.document_transformers import EmbeddingsRedundantFilter
 from langchain.retrievers.document_compressors import DocumentCompressorPipeline
 from langchain.retrievers.ensemble import EnsembleRetriever
-from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
 from langchain.retrievers.document_compressors.embeddings_filter import EmbeddingsFilter
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.schema import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_community.document_transformers import EmbeddingsRedundantFilter
 try:
     from langchain_community.retrievers import BM25Retriever
 except ImportError:
@@ -56,7 +56,7 @@ class LangchainCompressor:
         )
         if not BM25Retriever:
             raise ImportError("Could not import BM25Retriever. Please ensure that you have installed "
-                              "langchain==0.0.352")
+                              "langchain==0.1.12")
 
         #  This sparse retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
