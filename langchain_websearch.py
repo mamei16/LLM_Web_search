@@ -33,12 +33,16 @@ class LangchainCompressor:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             future_to_url = {executor.submit(download_html, url): url for url in url_list}
-            for future in concurrent.futures.as_completed(future_to_url, timeout=10):
-                url = future_to_url[future]
-                try:
-                    html_url_tupls.append((future.result(), url))
-                except Exception as exc:
-                    print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
+            try:
+                for future in concurrent.futures.as_completed(future_to_url, timeout=10):
+                    url = future_to_url[future]
+                    try:
+                        html_url_tupls.append((future.result(), url))
+                    except Exception as exc:
+                        print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
+            except TimeoutError as exc:
+                exc_str = str(exc).replace("futures unfinished", "websites did not load in time")
+                print(f'LLM_Web_search | {exc_str}')
 
         if not html_url_tupls:
             return []
