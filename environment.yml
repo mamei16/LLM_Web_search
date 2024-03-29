@@ -4,11 +4,11 @@ channels:
   - pytorch
 dependencies:
 - pip
-- faiss-cpu=1.7.4
+- faiss-cpu=1.8.0
 - pip:
   - duckduckgo-search==5.2.1
-  - beautifulsoup4==4.12.2
-  - langchain==0.1.12
-  - unstructured==0.6.6
+  - beautifulsoup4==4.12.3
+  - langchain==0.1.13
+  - unstructured==0.11.8
   - rank_bm25==0.2.2
-  - sentence-transformers==2.2.2
+  - sentence-transformers==2.6.1
