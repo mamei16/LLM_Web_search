@@ -1,7 +1,7 @@
 faiss-cpu==1.7.4
 duckduckgo-search==5.2.1
 beautifulsoup4==4.12.3
-langchain==0.1.12
+langchain==0.1.13
 unstructured==0.6.6
 rank_bm25==0.2.2
 sentence-transformers==2.2.2
