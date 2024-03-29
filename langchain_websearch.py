@@ -27,8 +27,8 @@ class LangchainCompressor:
         text = text.strip()
         return text
 
-    def faiss_embedding_query_urls(self, query: str, url_list: list[str], num_results: int = 5,
-                                   similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
+    def retrieve_documents(self, query: str, url_list: list[str], num_results: int = 5,
+                           similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
         html_url_tupls = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:

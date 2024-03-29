@@ -76,10 +76,10 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
             results.append(result)
             result_urls.append(result["href"])
 
-    documents.extend(langchain_compressor.faiss_embedding_query_urls(query, result_urls,
-                                                                     num_results=num_results_to_process,
-                                                                     similarity_threshold=similarity_threshold,
-                                                                     chunk_size=chunk_size))
+    documents.extend(langchain_compressor.retrieve_documents(query, result_urls,
+                                                             num_results=num_results_to_process,
+                                                             similarity_threshold=similarity_threshold,
+                                                             chunk_size=chunk_size))
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
@@ -111,10 +111,10 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
             result_urls.append(result["url"])
         pageno += 1
 
-    documents = langchain_compressor.faiss_embedding_query_urls(query, result_urls,
-                                                                num_results=num_results_to_process,
-                                                                similarity_threshold=similarity_threshold,
-                                                                chunk_size=chunk_size)
+    documents = langchain_compressor.retrieve_documents(query, result_urls,
+                                                        num_results=num_results_to_process,
+                                                        similarity_threshold=similarity_threshold,
+                                                        chunk_size=chunk_size)
     return docs_to_pretty_str(documents[:max_results])
 
 
