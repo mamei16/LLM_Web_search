@@ -72,7 +72,7 @@ def save_settings():
     with open(os.path.join(extension_path, "settings.json"), "w") as f:
         json.dump(params, f, indent=4)
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return gr.HTML(f'<font color="green"> Settings were saved at {current_datetime}</font>',
+    return gr.HTML(f'<span style="color:lawngreen"> Settings were saved at {current_datetime}</span>',
                    visible=True)
 
 
@@ -123,7 +123,7 @@ def save_system_prompt(filename, prompt):
     with open(os.path.join(extension_path, "system_prompts", filename), "w") as f:
         f.write(prompt)
 
-    return gr.HTML(f'<font color="green"> Saved successfully</font>',
+    return gr.HTML(f'<span style="color:lawngreen"> Saved successfully</span>',
                    visible=True)
 
 
@@ -131,7 +131,7 @@ def check_file_exists(filename):
     if filename == "":
         return gr.HTML("", visible=False)
     if os.path.exists(os.path.join(extension_path, "system_prompts", filename)):
-        return gr.HTML(f'<font color="orange"> Warning: Filename already exists</font>', visible=True)
+        return gr.HTML(f'<span style="color:orange"> Warning: Filename already exists</span>', visible=True)
     return gr.HTML("", visible=False)
 
 
@@ -180,7 +180,7 @@ def ui():
             params.update({setting_key: input_str})
             return {error_html_element: gr.HTML("", visible=False)}
         except re.error as e:
-            return {error_html_element: gr.HTML(f'<font color="red"> Invalid regex. {str(e).capitalize()}</font>',
+            return {error_html_element: gr.HTML(f'<span style="color:red"> Invalid regex. {str(e).capitalize()}</span>',
                                                 visible=True)}
 
     def update_default_custom_system_message(check: bool):
