@@ -28,22 +28,6 @@ to download the latest code for this extension.
      (NB: Solving the environment can take a while)
 3. Launch the Web UI with:  
 ```python server.py --extension LLM_Web_search```
-<details>
-<summary>
-Setup details and information about installing manually
-</summary>
-
-In case you want to install dependencies manually, replace step 3 above with the following:  
-Update the conda environment in which you installed the dependencies of 
-[oobabooga's text-generation-webui](https://github.com/oobabooga/text-generation-webui).
-If you used the one-click install method, run the command 
-`conda env update -p <path_to_your_environment> --file environment.yml`,
-where you need to replace `<path_to_your_environment>` with the path to the 
-`/installer_files/env` subfolder within the text-generation-webui folder.
-Otherwise, if you made your own environment, 
-use `conda env update -n <name_of_your_environment> --file environment.yml`  
-   (NB: Solving the environment will take a while)
-</details>
 
 If the installation was successful and the extension was loaded, a new tab with the 
 title "LLM Web Search" should be visible in the web UI.
