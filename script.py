@@ -36,12 +36,14 @@ params = {
     "chunk size": 500,
     "duckduckgo results per query": 10,
     "append current datetime": False,
-    "default system prompt filename": None
+    "default system prompt filename": None,
+    "force search prefix": "Search_web"
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = None
 update_history = None
+force_search = False
 
 
 def setup():
@@ -143,6 +145,11 @@ def deactivate_system_prompt():
     return "None"
 
 
+def toggle_forced_search(value):
+    global force_search
+    force_search = value
+
+
 def ui():
     """
     Creates custom gradio elements when the UI is launched.
@@ -226,8 +233,9 @@ def ui():
                 value=lambda: 'Select custom system message to load...' if custom_system_message_filename is None else
                               custom_system_message_filename, elem_classes='slim-dropdown')
             with gr.Row():
-                set_system_message_as_default = gr.Checkbox(value=lambda: params['default system prompt filename'],
-                                                            label='Set this custom system message as the default')
+                set_system_message_as_default = gr.Checkbox(
+                    value=lambda: custom_system_message_filename == params["default system prompt filename"],
+                    label='Set this custom system message as the default')
                 ui_module.create_refresh_button(system_prompt, lambda: None,
                                                 lambda: {'choices': get_available_system_prompts()},
                                                 'refresh-button', interactive=True)
@@ -301,6 +309,12 @@ def ui():
     # '.input' = only triggers when user changes the value of the component, not a function
     set_system_message_as_default.input(update_default_custom_system_message, set_system_message_as_default, None)
 
+    # A dummy checkbox to enable the actual "Force web search" checkbox to trigger a gradio event
+    force_search_checkbox = gr.Checkbox(value=False, visible=False, elem_id="Force-search-checkbox")
+    force_search_checkbox.change(toggle_forced_search, force_search_checkbox, None)
+    with gr.Blocks() as bl:
+        bl.load(None, None, None, js=f'() => {{{custom_js()};}}')
+
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
     """
@@ -344,9 +358,15 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     compiled_search_command_regex = re.compile(search_command_regex)
     compiled_open_url_command_regex = re.compile(open_url_command_regex)
 
+    if force_search:
+        question += f" {params['force search prefix']}"
+
     reply = None
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+
+            if force_search:
+                reply = params["force search prefix"] + reply
 
             search_re_match = compiled_search_command_regex.search(reply)
             if search_re_match is not None:
@@ -490,7 +510,8 @@ def custom_js():
     loaded.
     :return:
     """
-    return ''
+    with open(os.path.join(extension_path, "script.js"), "r") as f:
+        return f.read()
 
 
 def chat_input_modifier(text, visible_text, state):
