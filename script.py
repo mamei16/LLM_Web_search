@@ -281,11 +281,11 @@ def ui():
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
                                                                search_command_regex_error_label),
-                                search_command_regex, search_command_regex_error_label)
+                                search_command_regex, search_command_regex_error_label, show_progress="hidden")
 
     open_url_command_regex.change(lambda x: update_regex_setting(x, "open url command regex",
                                                                  open_url_command_regex_error_label),
-                                  open_url_command_regex, open_url_command_regex_error_label)
+                                  open_url_command_regex, open_url_command_regex_error_label, show_progress="hidden")
 
     show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
@@ -300,11 +300,12 @@ def ui():
     sys_prompt_filename.change(check_file_exists, sys_prompt_filename, system_prompt_saved_success_elem)
     sys_prompt_save_button.click(save_system_prompt, [sys_prompt_filename, system_prompt_text],
                                  system_prompt_saved_success_elem,
-                                 show_progress=False).then(timeout_save_message,
-                                                           None,
-                                                           system_prompt_saved_success_elem,
-                                                           show_progress=False).then(lambda: "", None,
-                                                                                     sys_prompt_filename)
+                                 show_progress="hidden").then(timeout_save_message,
+                                                              None,
+                                                              system_prompt_saved_success_elem,
+                                                              show_progress="hidden").then(lambda: "", None,
+                                                                                        sys_prompt_filename,
+                                                                                        show_progress="hidden")
     append_datetime.change(lambda x: params.update({"append current datetime": x}), append_datetime, None)
     # '.input' = only triggers when user changes the value of the component, not a function
     set_system_message_as_default.input(update_default_custom_system_message, set_system_message_as_default, None)
