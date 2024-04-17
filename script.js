@@ -1,5 +1,5 @@
 var generate_button = document.getElementById("Generate");
-generate_button.insertAdjacentHTML("afterend", '<div style="position:relative;"> <label style="color:#8b8b8b;white-space:nowrap;position:absolute;top:8px;"><input type="checkbox" id="force-search" name="accept">  Force web search </label> </div>');
+generate_button.insertAdjacentHTML("afterend", '<div style="position:relative;"> <label style="color:#8b8b8b;white-space:nowrap;position:absolute;top:8px;right:0px;"><input type="checkbox" id="force-search" name="accept">  Force web search </label> </div>');
 generate_button.style.setProperty("position", "relative");
 generate_button.style.setProperty("top", "15px");
 generate_button.style.setProperty("margin-left", "-10px");
