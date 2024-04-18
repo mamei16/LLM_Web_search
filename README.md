@@ -66,7 +66,7 @@ fulfills the requirement above, the search query should be matched by "Group 1" 
 Here is an example of a more flexible, but more complex, regex that works for several
 different models:
 ```regexp
-[Ss]earch_web:?[\( ]?(?:["'])(.*)(?:["'])+\)?
+[Ss]earch_web\((?:["'])(.*)(?:["'])\)
 ```
 ### Reading web pages
 Experimental support exists for extracting the full text content from a webpage. The default regex to use this
