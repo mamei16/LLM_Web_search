@@ -96,5 +96,7 @@ automatic redirect and Special Queries are not supported.
 ## Recommended models
 If you (like me) have ≤ 12 GB VRAM, I recommend using 
 [Llama-3-8B-instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct).
-Several existing GGUF versions have a stop token issue, which can be solved by [editing the file's 
+You can find a matching instruction template in the extension's `instruction_templates`
+folder. Simply copy it to the main web UI's `instruction-templates` folder.
+**Note:** Several existing GGUF versions have a stop token issue, which can be solved by [editing the file's 
 metadata](https://www.reddit.com/r/LocalLLaMA/comments/1c7dkxh/tutorial_how_to_make_llama3instruct_ggufs_less/).
