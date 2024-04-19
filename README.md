@@ -99,4 +99,5 @@ If you (like me) have ≤ 12 GB VRAM, I recommend using
 You can find a matching instruction template in the extension's `instruction_templates`
 folder. Simply copy it to the main web UI's `instruction-templates` folder.
 **Note:** Several existing GGUF versions have a stop token issue, which can be solved by [editing the file's 
-metadata](https://www.reddit.com/r/LocalLLaMA/comments/1c7dkxh/tutorial_how_to_make_llama3instruct_ggufs_less/).
+metadata](https://www.reddit.com/r/LocalLLaMA/comments/1c7dkxh/tutorial_how_to_make_llama3instruct_ggufs_less/). A GGUF version where this issue has already been fixed can be found 
+[here](https://huggingface.co/AI-Engine/Meta-Llama-3-8B-Instruct-GGUF/blob/main/Meta-Llama-3-8B-Instruct.Q5_k_m_with_temp_stop_token_fix.gguf).
