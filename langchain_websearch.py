@@ -17,9 +17,14 @@ from langchain_community.retrievers import BM25Retriever
 
 class LangchainCompressor:
 
-    def __init__(self, device="cuda"):
+    def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
+                 ensemble_weighting: float = 0.5):
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device})
         self.spaces_regex = re.compile(r" {3,}")
+        self.num_results = num_results
+        self.similarity_threshold = similarity_threshold
+        self.chunk_size = chunk_size
+        self.ensemble_weighting = ensemble_weighting
 
     def preprocess_text(self, text: str) -> str:
         text = text.replace("\n", " \n")
@@ -27,8 +32,7 @@ class LangchainCompressor:
         text = text.strip()
         return text
 
-    def retrieve_documents(self, query: str, url_list: list[str], num_results: int = 5,
-                           similarity_threshold: float = 0.5, chunk_size: int = 500) -> list[Document]:
+    def retrieve_documents(self, query: str, url_list: list[str]) -> list[Document]:
         html_url_tupls = []
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -48,22 +52,22 @@ class LangchainCompressor:
             return []
 
         documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10,
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                        separators=["\n\n", "\n", ".", ", ", " ", ""])
         split_docs = text_splitter.split_documents(documents)
         # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
-            search_kwargs={"k": num_results}
+            search_kwargs={"k": self.num_results}
         )
 
         #  This sparse retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
         bm25_retriever = BM25Retriever.from_documents(split_docs, preprocess_func=self.preprocess_text)
-        bm25_retriever.k = num_results
+        bm25_retriever.k = self.num_results
 
         redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
         embeddings_filter = EmbeddingsFilter(embeddings=self.embeddings, k=None,
-                                             similarity_threshold=similarity_threshold)
+                                             similarity_threshold=self.similarity_threshold)
         pipeline_compressor = DocumentCompressorPipeline(
             transformers=[redundant_filter, embeddings_filter]
         )
@@ -72,13 +76,14 @@ class LangchainCompressor:
                                                                base_retriever=faiss_retriever)
 
         ensemble_retriever = EnsembleRetriever(
-            retrievers=[bm25_retriever, compression_retriever], weights=[0.4, 0.5]
+            retrievers=[compression_retriever, bm25_retriever],
+            weights=[self.ensemble_weighting, 1 - self.ensemble_weighting]
         )
 
         compressed_docs = ensemble_retriever.get_relevant_documents(query)
 
         # Ensemble may return more than "num_results" results, so cut off excess ones
-        return compressed_docs[:num_results]
+        return compressed_docs[:self.num_results]
 
 
 def docs_to_pretty_str(docs) -> str:

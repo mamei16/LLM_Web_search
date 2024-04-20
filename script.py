@@ -37,7 +37,8 @@ params = {
     "duckduckgo results per query": 10,
     "append current datetime": False,
     "default system prompt filename": None,
-    "force search prefix": "Search_web"
+    "force search prefix": "Search_web",
+    "ensemble weighting": 0.5
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -251,7 +252,10 @@ def ui():
             
     gr.Markdown(value='---')
     with gr.Accordion("Advanced settings", open=False):
-        gr.Markdown("**Note: Changing these might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
+        ensemble_weighting = gr.Slider(minimum=0, maximum=1, step=0.05, value=lambda: params["ensemble weighting"],
+                                       label="Ensemble Weighting", info="Smaller values = More keyword oriented, "
+                                                                        "Larger values = More focus on semantic similarity")
+        gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=lambda: params["search results per query"], precision=0)
         num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
@@ -271,6 +275,7 @@ def ui():
     enable.change(toggle_extension, enable, None)
     use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
+    ensemble_weighting.change(lambda x: params.update({"ensemble weighting": x}), ensemble_weighting, None)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
                                       num_process_search_results, None)
@@ -322,7 +327,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    global update_history
+    global update_history, langchain_compressor
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
@@ -340,11 +345,14 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     future_to_url = {}
     matched_patterns = {}
     max_search_results = int(params["search results per query"])
-    num_search_results_to_process = int(params["duckduckgo results per query"])
     instant_answers = params["instant answers"]
     # regular_search_results = params["regular search results"]
-    similarity_score_threshold = params["langchain similarity score threshold"]
-    chunk_size = params["chunk size"]
+
+    langchain_compressor.num_results = int(params["duckduckgo results per query"])
+    langchain_compressor.similarity_threshold = params["langchain similarity score threshold"]
+    langchain_compressor.chunk_size = params["chunk size"]
+    langchain_compressor.ensemble_weighting = params["ensemble weighting"]
+
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
     searxng_url = params["searxng url"]
@@ -383,19 +391,13 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                           search_term,
                                                           langchain_compressor,
                                                           max_search_results,
-                                                          similarity_score_threshold,
-                                                          instant_answers,
-                                                          chunk_size,
-                                                          num_search_results_to_process)] = search_term
+                                                          instant_answers)] = search_term
                 else:
                     future_to_search_term[executor.submit(langchain_search_searxng,
                                                           search_term,
                                                           searxng_url,
                                                           langchain_compressor,
-                                                          max_search_results,
-                                                          similarity_score_threshold,
-                                                          chunk_size,
-                                                          num_search_results_to_process)] = search_term
+                                                          max_search_results)] = search_term
 
             search_re_match = compiled_open_url_command_regex.search(reply)
             if search_re_match is not None:

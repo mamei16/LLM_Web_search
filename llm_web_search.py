@@ -54,9 +54,8 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
 
 
-def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor,
-                                max_results: int, similarity_threshold: float, instant_answers: bool,
-                                chunk_size: int, num_results_to_process: int):
+def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor, max_results: int,
+                                instant_answers: bool):
     documents = []
     query = query.strip("\"'")
     with DDGS() as ddgs:
@@ -72,14 +71,11 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
         results = []
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
-                                max_results=num_results_to_process):
+                                max_results=langchain_compressor.num_results):
             results.append(result)
             result_urls.append(result["href"])
 
-    documents.extend(langchain_compressor.retrieve_documents(query, result_urls,
-                                                             num_results=num_results_to_process,
-                                                             similarity_threshold=similarity_threshold,
-                                                             chunk_size=chunk_size))
+    documents.extend(langchain_compressor.retrieve_documents(query, result_urls))
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
@@ -87,16 +83,14 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     return docs_to_pretty_str(documents[:max_results])
 
 
-def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor,
-                             max_results: int, similarity_threshold: float, chunk_size: int,
-                             num_results_to_process: int):
+def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor, max_results: int):
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
     result_urls = []
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
     pageno = 1
-    while len(result_urls) < num_results_to_process:
+    while len(result_urls) < langchain_compressor.num_results:
         response = requests.get(url + request_str + str(pageno), headers=headers)
         if not result_urls:     # no results to lose by raising an exception here
             response.raise_for_status()
@@ -111,10 +105,7 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
             result_urls.append(result["url"])
         pageno += 1
 
-    documents = langchain_compressor.retrieve_documents(query, result_urls,
-                                                        num_results=num_results_to_process,
-                                                        similarity_threshold=similarity_threshold,
-                                                        chunk_size=chunk_size)
+    documents = langchain_compressor.retrieve_documents(query, result_urls)
     return docs_to_pretty_str(documents[:max_results])
 
 
