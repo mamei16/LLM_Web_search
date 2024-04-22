@@ -40,7 +40,7 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
 
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
-        vecs = []
+        values = []
         for text_batch in batchify(texts, batch_size):
             with torch.no_grad():
                 tokens = self.splade_doc_tokenizer(text_batch, truncation=True, padding=True,
@@ -54,9 +54,9 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
             # extract all non-zero values and their indices from the sparse vectors
             for batch in tvecs.cpu():
                 indices.append(batch.nonzero(as_tuple=True)[0].numpy())
-                vecs.append(batch[indices[-1]].numpy())
+                values.append(batch[indices[-1]].numpy())
 
-        return indices, vecs
+        return indices, values
 
     def compute_query_vector(self, text: str):
         """
