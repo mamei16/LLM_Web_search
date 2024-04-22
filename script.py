@@ -38,7 +38,9 @@ params = {
     "append current datetime": False,
     "default system prompt filename": None,
     "force search prefix": "Search_web",
-    "ensemble weighting": 0.5
+    "ensemble weighting": 0.5,
+    "keyword retriever": "bm25",
+    "splade batch size": 2
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -53,6 +55,8 @@ def setup():
     :return:
     """
     global params
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
+    os.environ["QDRANT__TELEMETRY_DISABLED"] = "true"
 
     try:
         with open(os.path.join(extension_path, "settings.json"), "r") as f:
@@ -80,14 +84,25 @@ def save_settings():
 def toggle_extension(_enable: bool):
     global langchain_compressor, custom_system_message_filename
     if _enable:
-        langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda")
+        langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda",
+                                                   keyword_retriever=params["keyword retriever"],
+                                                   model_cache_dir=os.path.join(extension_path, "hf_models"))
         compressor_model = langchain_compressor.embeddings.client
         compressor_model.to(compressor_model._target_device)
         custom_system_message_filename = params.get("default system prompt filename")
     else:
         if not params["cpu only"] and 'langchain_compressor' in globals():  # free some VRAM
-            if hasattr(langchain_compressor, 'embeddings'):
-                del langchain_compressor.embeddings.client
+            model_attrs = ["embeddings", "splade_doc_model", "splade_query_model"]
+            for model_attr in model_attrs:
+                if hasattr(langchain_compressor, model_attr):
+                    model = getattr(langchain_compressor, model_attr)
+                    if hasattr(model, "client"):
+                        model.client.to("cpu")
+                        del model.client
+                    else:
+                        if hasattr(model, "to"):
+                            model.to("cpu")
+                        del model
             torch.cuda.empty_cache()
     params.update({"enable": _enable})
 
@@ -255,6 +270,16 @@ def ui():
         ensemble_weighting = gr.Slider(minimum=0, maximum=1, step=0.05, value=lambda: params["ensemble weighting"],
                                        label="Ensemble Weighting", info="Smaller values = More keyword oriented, "
                                                                         "Larger values = More focus on semantic similarity")
+        with gr.Row():
+            keyword_retriever = gr.Radio([("Okapi BM25", "bm25"),("SPLADE", "splade")], label="Sparse keyword retriever",
+                                         info="For change to take effect, toggle the extension off and on again",
+                                         value=lambda: params["keyword retriever"])
+            splade_batch_size = gr.Slider(minimum=2, maximum=256, step=2, value=lambda: params["splade batch size"],
+                                          label="SPLADE batch size",
+                                          info="Smaller values = Slower retrieval (but lower VRAM usage), "
+                                               "Larger values = Faster retrieval (but higher VRAM usage). "
+                                               "A good trade-off seems to be setting it = 8",
+                                          precision=0)
         gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=lambda: params["search results per query"], precision=0)
@@ -276,6 +301,8 @@ def ui():
     use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
     ensemble_weighting.change(lambda x: params.update({"ensemble weighting": x}), ensemble_weighting, None)
+    keyword_retriever.change(lambda x: params.update({"keyword retriever": x}), keyword_retriever, None)
+    splade_batch_size.change(lambda x: params.update({"splade batch size": x}), splade_batch_size, None)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
                                       num_process_search_results, None)
@@ -352,6 +379,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     langchain_compressor.similarity_threshold = params["langchain similarity score threshold"]
     langchain_compressor.chunk_size = params["chunk size"]
     langchain_compressor.ensemble_weighting = params["ensemble weighting"]
+    langchain_compressor.splade_batch_size = params["splade batch size"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]

@@ -4,10 +4,26 @@ command. Once the command has been found in the model output using a regular exp
 [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
 is used to search the web and return a number of result pages. Finally, an
 ensemble of LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/) and 
-[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25)
+[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) (Or alternatively, [SPLADE](https://github.com/naver/splade))
 is used to extract the relevant parts (if any) of each web page in the search results
 and the results are appended to the model's output.
 ![llm_websearch](https://github.com/mamei16/LLM_Web_search/assets/25900898/f9d2d83c-e3cf-4f69-91c2-e9c3fe0b7d89)
+
+
+* **[Table of Contents](#table-of-contents)**
+  * [Installation](#installation)
+  * [Usage](#usage)
+    + [Using a custom regular expression](#using-a-custom-regular-expression)
+    + [Reading web pages](#reading-web-pages)
+  * [Search backends](#search-backends)
+    + [DuckDuckGo](#duckduckgo)
+    + [SearXNG](#searxng)
+      + [Search parameters](#search-parameters)
+  * [Keyword retrievers](#keyword-retrievers)
+    + [Okapi BM25](#okapi-bm25)
+    + [SPLADE](#splade)
+  * [Recommended models](#recommended-models)
+
 ## Installation
 1. Go to the "Session" tab of the web UI and use "Install or update an extension" 
 to download the latest code for this extension.
@@ -87,11 +103,33 @@ SearXNG instance instead of DuckDuckGo, simply paste the URL into the
 "SearXNG URL" text field of the "LLM Web Search" settings tab. The instance must support
 returning results in JSON format.
 
-### Search parameters
+#### Search parameters
 To modify the categories, engines, languages etc. that should be used for a
 specific query, it must follow the
 [SearXNG search syntax](https://docs.searxng.org/user/search-syntax.html). Currently, 
 automatic redirect and Special Queries are not supported.
+
+
+## Keyword retrievers
+### Okapi BM25
+This extension comes out of the box with 
+[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) enabled, which is widely used and very popuplar
+for keyword based document retrieval. It runs on the CPU and,
+for the purpose of this extension, it is fast.  
+### SPLADE
+If you don't run the extension in "CPU only" mode and have some VRAM to spare,
+you can also select [SPLADE](https://github.com/naver/splade) in the "Advanced settings" section
+as an alternative. It has been [shown](https://arxiv.org/pdf/2207.03834.pdf) to outperform BM25 in multiple benchmarks 
+and uses a technique called "query expansion" to add additional contextually relevant words
+to the original query. However, is it slower than BM25. You can read more about it [here](https://www.pinecone.io/learn/splade/).  
+To use SPLADE, you have to install the additional dependency [qdrant-client](https://github.com/qdrant/qdrant-client). 
+Simply activate the conda environment of the main web UI and run
+`pip install qdrant-client`.  
+To improve performance, documents are embedded in batches and in parallel. Increasing the
+"SPLADE batch size" parameter setting improves performance up to a certain point,
+but VRAM usage ramps up quickly with increasing batch size. A batch size of 8 appears 
+to be a good trade-off, but the default value is 2 to avoid running out of memory on smaller
+GPUs.
 
 ## Recommended models
 If you (like me) have ≤ 12 GB VRAM, I recommend using 
