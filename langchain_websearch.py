@@ -36,7 +36,6 @@ class LangchainCompressor:
         self.similarity_threshold = similarity_threshold
         self.chunk_size = chunk_size
         self.ensemble_weighting = ensemble_weighting
-        self.splade_batch_size = splade_batch_size
 
     def preprocess_text(self, text: str) -> str:
         text = text.replace("\n", " \n")
