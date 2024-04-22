@@ -18,7 +18,7 @@ and the results are appended to the model's output.
   * [Search backends](#search-backends)
     + [DuckDuckGo](#duckduckgo)
     + [SearXNG](#searxng)
-    + [Search parameters](#search-parameters)
+      + [Search parameters](#search-parameters)
   * [Keyword retrievers](#keyword-retrievers)
     + [Okapi BM25](#okapi-bm25)
     + [SPLADE](#splade)
