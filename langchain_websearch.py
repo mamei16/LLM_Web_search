@@ -1,6 +1,8 @@
 import re
 
 import asyncio
+import warnings
+
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
@@ -23,16 +25,21 @@ from .qdrant_retriever import MyQdrantSparseVectorRetriever
 class LangchainCompressor:
 
     def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
-                 ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever="bm25"):
+                 ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever="bm25",
+                 model_cache_dir: str = None):
         self.device = device
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device})
-        self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc")
-        self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc").to(
-            self.device)
-        self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query")
-        self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query").to(
-            self.device)
-        self.splade_batch_size = splade_batch_size
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device},
+                                                cache_folder=model_cache_dir)
+        if keyword_retriever == "splade":
+            self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
+                                                                      cache_dir=model_cache_dir)
+            self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
+                                                                         cache_dir=model_cache_dir).to(self.device)
+            self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query",
+                                                                        cache_dir=model_cache_dir)
+            self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
+                                                                           cache_dir=model_cache_dir).to(self.device)
+            self.splade_batch_size = splade_batch_size
         self.spaces_regex = re.compile(r" {3,}")
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
@@ -167,7 +174,8 @@ def download_html(url: str) -> bytes:
 
 
 def html_to_plaintext_doc(html_text: str or bytes, url: str) -> Document:
-    soup = BeautifulSoup(html_text, features="lxml")
+    with warnings.catch_warnings(action="ignore"):
+        soup = BeautifulSoup(html_text, features="lxml")
     for script in soup(["script", "style"]):
         script.extract()
 
