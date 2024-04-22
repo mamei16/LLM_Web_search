@@ -18,7 +18,7 @@ from langchain.schema import Document
 
 def batchify(_list: List, batch_size: int) -> Iterable:
     for i in range(0, len(_list), batch_size):
-        yield _list[i:i+batch_size]
+        yield _list[i:i + batch_size]
 
 
 class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
