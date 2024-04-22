@@ -16,8 +16,11 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_transformers import EmbeddingsRedundantFilter
 from langchain_community.retrievers import BM25Retriever
-from qdrant_client import QdrantClient, models
 from transformers import AutoTokenizer, AutoModelForMaskedLM
+try:
+    from qdrant_client import QdrantClient, models
+except ImportError:
+    qrant_client = None
 
 from .qdrant_retriever import MyQdrantSparseVectorRetriever
 
@@ -31,6 +34,8 @@ class LangchainCompressor:
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device},
                                                 cache_folder=model_cache_dir)
         if keyword_retriever == "splade":
+            if qrant_client is None:
+                raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client")
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
