@@ -53,6 +53,8 @@ def setup():
     :return:
     """
     global params
+    os.environ["TOKENIZERS_PARALLELISM"] = "true"
+    os.environ["QDRANT__TELEMETRY_DISABLED"] = "false"
 
     try:
         with open(os.path.join(extension_path, "settings.json"), "r") as f:
@@ -352,6 +354,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     langchain_compressor.similarity_threshold = params["langchain similarity score threshold"]
     langchain_compressor.chunk_size = params["chunk size"]
     langchain_compressor.ensemble_weighting = params["ensemble weighting"]
+    langchain_compressor.splade_batch_size = 8  # TODO: make this an UI option
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
