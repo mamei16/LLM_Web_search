@@ -100,7 +100,8 @@ def toggle_extension(_enable: bool):
                         model.client.to("cpu")
                         del model.client
                     else:
-                        model.to("cpu")
+                        if hasattr(model, "to"):
+                            model.to("cpu")
                         del model
             torch.cuda.empty_cache()
     params.update({"enable": _enable})
