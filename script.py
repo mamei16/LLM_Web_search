@@ -379,7 +379,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     langchain_compressor.similarity_threshold = params["langchain similarity score threshold"]
     langchain_compressor.chunk_size = params["chunk size"]
     langchain_compressor.ensemble_weighting = params["ensemble weighting"]
-    langchain_compressor.splade_batch_size = 8  # TODO: make this an UI option
+    langchain_compressor.splade_batch_size = params["splade batch size"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
