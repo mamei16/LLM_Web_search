@@ -103,7 +103,7 @@ SearXNG instance instead of DuckDuckGo, simply paste the URL into the
 "SearXNG URL" text field of the "LLM Web Search" settings tab. The instance must support
 returning results in JSON format.
 
-### Search parameters
+#### Search parameters
 To modify the categories, engines, languages etc. that should be used for a
 specific query, it must follow the
 [SearXNG search syntax](https://docs.searxng.org/user/search-syntax.html). Currently, 
