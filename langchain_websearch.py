@@ -97,7 +97,8 @@ class LangchainCompressor:
             collection_name=collection_name,
             sparse_vector_name=vector_name,
             sparse_encoder=None,
-            batch_size=self.splade_batch_size
+            batch_size=self.splade_batch_size,
+            k=self.num_results
         )
 
         qdrant_retriever.add_documents(split_docs)
