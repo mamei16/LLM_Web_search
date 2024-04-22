@@ -34,7 +34,7 @@ class LangchainCompressor:
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device},
                                                 cache_folder=model_cache_dir)
         if keyword_retriever == "splade":
-            if qrant_client is None:
+            if "QdrantClient" not in globals():
                 raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client")
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)

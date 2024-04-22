@@ -17,7 +17,7 @@ from langchain.schema import Document
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
-    qrant_client = None
+    pass
 
 
 def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
