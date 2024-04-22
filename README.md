@@ -10,7 +10,7 @@ and the results are appended to the model's output.
 ![llm_websearch](https://github.com/mamei16/LLM_Web_search/assets/25900898/f9d2d83c-e3cf-4f69-91c2-e9c3fe0b7d89)
 
 
-* [Table of Contents](#table-of-contents)
+* **[Table of Contents](#table-of-contents)**
   * [Installation](#installation)
   * [Usage](#usage)
     + [Using a custom regular expression](#using-a-custom-regular-expression)
@@ -113,21 +113,22 @@ automatic redirect and Special Queries are not supported.
 ## Keyword retrievers
 ### Okapi BM25
 This extension comes out of the box with 
-[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25), which is widely used and very popuplar
+[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) enabled, which is widely used and very popuplar
 for keyword based document retrieval. It runs on the CPU and,
 for the purpose of this extension, it is fast.  
 ### SPLADE
 If you don't run the extension in "CPU only" mode and have some VRAM to spare,
 you can also select [SPLADE](https://github.com/naver/splade) in the "Advanced settings" section
-as an alternative. It has been
-been [shown](https://arxiv.org/pdf/2207.03834.pdf) to outperform BM25 in multiple benchmarks 
-and uses a technique called "query expansion" to add additional contextually relevant words to the original query. You can read more about it [here](https://qdrant.tech/articles/sparse-vectors/#splade).  
-To use SPLADE, you have to install an additional dependency. Activate the conda environment of the main web UI and run
+as an alternative. It has been [shown](https://arxiv.org/pdf/2207.03834.pdf) to outperform BM25 in multiple benchmarks 
+and uses a technique called "query expansion" to add additional contextually relevant words
+to the original query. You can read more about it [here](https://www.pinecone.io/learn/splade/).  
+To use SPLADE, you have to install the additional dependency [qdrant-client](https://github.com/qdrant/qdrant-client). 
+Simply activate the conda environment of the main web UI and run
 `pip install qdrant-client`.  
 To improve performance, documents are embedded in batches and in parallel. Increasing the
 "SPLADE batch size" parameter setting improves performance up to a certain point,
-but VRAM usage ramps up quickly with increasing batch size. I have found a 
-batch size of 8 to be a good trade-off, but the default value is 2 to avoid running out of memory on smaller
+but VRAM usage ramps up quickly with increasing batch size. A batch size of 8 appears 
+to be a good trade-off, but the default value is 2 to avoid running out of memory on smaller
 GPUs.
 
 ## Recommended models
