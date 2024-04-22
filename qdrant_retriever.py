@@ -42,7 +42,6 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
             with torch.no_grad():
                 tokens = self.splade_doc_tokenizer(text_batch, truncation=True, padding=True,
                                                    return_tensors="pt").to(self.device)
-
                 output = self.splade_doc_model(**tokens)
             logits, attention_mask = output.logits, tokens.attention_mask
             relu_log = torch.log(1 + torch.relu(logits))
@@ -50,9 +49,9 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
             tvecs, _ = torch.max(weighted_log, dim=1)
 
             # extract all non-zero values and their indices from the sparse vectors
-            for batch in tvecs:
-                indices.append(batch.nonzero(as_tuple=True)[0].tolist())
-                vecs.append(batch[indices[-1]].tolist())
+            for batch in tvecs.cpu():
+                indices.append(batch.nonzero(as_tuple=True)[0].numpy())
+                vecs.append(batch[indices[-1]].numpy())
 
         return indices, vecs
 
