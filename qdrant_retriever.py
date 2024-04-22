@@ -49,7 +49,7 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
             weighted_log = relu_log * attention_mask.unsqueeze(-1)
             tvecs, _ = torch.max(weighted_log, dim=1)
 
-            # extract the vectors that are non-zero and their indices
+            # extract all non-zero values and their indices from the sparse vectors
             for batch in tvecs:
                 indices.append(batch.nonzero(as_tuple=True)[0].tolist())
                 vecs.append(batch[indices[-1]].tolist())

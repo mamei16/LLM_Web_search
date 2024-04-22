@@ -90,8 +90,8 @@ class LangchainCompressor:
         qdrant_retriever = MyQdrantSparseVectorRetriever(
             splade_doc_tokenizer=self.splade_doc_tokenizer,
             splade_doc_model=self.splade_doc_model,
-            splade_query_tokenizer = self.splade_query_tokenizer,
-            splade_query_model = self.splade_query_model,
+            splade_query_tokenizer=self.splade_query_tokenizer,
+            splade_query_model=self.splade_query_model,
             device=self.device,
             client=client,
             collection_name=collection_name,
