@@ -9,12 +9,15 @@ from typing import (
 )
 
 import torch
-from qdrant_client import QdrantClient, models
 from langchain_community.retrievers import QdrantSparseVectorRetriever
 from langchain_community.vectorstores.qdrant import Qdrant
 from langchain_core.pydantic_v1 import Field
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain.schema import Document
+try:
+    from qdrant_client import QdrantClient, models
+except ImportError:
+    qrant_client = None
 
 
 def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
