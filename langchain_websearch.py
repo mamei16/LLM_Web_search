@@ -87,7 +87,6 @@ class LangchainCompressor:
             },
         )
 
-        # Create a retriever with a demo encoder
         qdrant_retriever = MyQdrantSparseVectorRetriever(
             splade_doc_tokenizer=self.splade_doc_tokenizer,
             splade_doc_model=self.splade_doc_model,

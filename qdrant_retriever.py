@@ -5,6 +5,7 @@ from typing import (
     Optional,
     Tuple,
     cast,
+    Generator
 )
 
 import torch
@@ -16,7 +17,7 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain.schema import Document
 
 
-def batchify(_list: List, batch_size: int) -> Iterable:
+def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
     for i in range(0, len(_list), batch_size):
         yield _list[i:i + batch_size]
 
