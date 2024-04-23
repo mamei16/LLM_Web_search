@@ -439,8 +439,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 future_to_url[executor.submit(get_webpage_content, url)] = url
 
             # Stop model if either command has been detected in the output
-            if (re.search(search_command_regex, reply) is not None
-                    or re.search(open_url_command_regex, reply) is not None):
+            if web_search or read_webpage:
                 yield reply
                 break
             yield reply
