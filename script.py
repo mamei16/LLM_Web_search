@@ -10,6 +10,7 @@ import torch
 
 import modules.shared as shared
 from modules import chat, ui as ui_module
+from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
 from .langchain_websearch import LangchainCompressor
@@ -253,9 +254,11 @@ def ui():
                 set_system_message_as_default = gr.Checkbox(
                     value=lambda: custom_system_message_filename == params["default system prompt filename"],
                     label='Set this custom system message as the default')
-                ui_module.create_refresh_button(system_prompt, lambda: None,
-                                                lambda: {'choices': get_available_system_prompts()},
-                                                'refresh-button', interactive=True)
+                refresh_button = ui_module.create_refresh_button(system_prompt, lambda: None,
+                                                                 lambda: {'choices': get_available_system_prompts()},
+                                                                 'refresh-button', interactive=True)
+                refresh_button.elem_id = "custom-sysprompt-refresh"
+                delete_button = gr.Button('🗑️', elem_classes='refresh-button', interactive=True)
             append_datetime = gr.Checkbox(value=lambda: params['append current datetime'],
                                           label='Append current date and time when loading custom system message')
         with gr.Column():
@@ -325,6 +328,11 @@ def ui():
                             None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
 
+    delete_button.click(
+        lambda x: x, system_prompt, gradio('delete_filename')).then(
+        lambda: os.path.join(extension_path, "system_prompts", ""), None, gradio('delete_root')).then(
+        lambda: gr.update(visible=True), None, gradio('file_deleter'))
+    shared.gradio['delete_confirm'].click(lambda: "None", None, system_prompt).then(None, None, None, _js="() => { document.getElementById('custom-sysprompt-refresh').click() }")
     system_prompt.change(load_system_prompt, system_prompt, shared.gradio['custom_system_message'])
     system_prompt.change(load_system_prompt, system_prompt, system_prompt_text)
     # restore checked state if chosen system prompt matches the default
@@ -336,6 +344,7 @@ def ui():
                                  show_progress="hidden").then(timeout_save_message,
                                                               None,
                                                               system_prompt_saved_success_elem,
+                                                              _js="() => { document.getElementById('custom-sysprompt-refresh').click() }",
                                                               show_progress="hidden").then(lambda: "", None,
                                                                                         sys_prompt_filename,
                                                                                         show_progress="hidden")
