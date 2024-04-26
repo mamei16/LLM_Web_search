@@ -332,7 +332,9 @@ def ui():
         lambda x: x, system_prompt, gradio('delete_filename')).then(
         lambda: os.path.join(extension_path, "system_prompts", ""), None, gradio('delete_root')).then(
         lambda: gr.update(visible=True), None, gradio('file_deleter'))
-    shared.gradio['delete_confirm'].click(lambda: "None", None, system_prompt).then(None, None, None, _js="() => { document.getElementById('custom-sysprompt-refresh').click() }")
+    shared.gradio['delete_confirm'].click(
+        lambda: "None", None, system_prompt).then(
+        None, None, None, _js="() => { document.getElementById('custom-sysprompt-refresh').click() }")
     system_prompt.change(load_system_prompt, system_prompt, shared.gradio['custom_system_message'])
     system_prompt.change(load_system_prompt, system_prompt, system_prompt_text)
     # restore checked state if chosen system prompt matches the default
