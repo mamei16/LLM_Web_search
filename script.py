@@ -105,6 +105,7 @@ def toggle_extension(_enable: bool):
                         del model
             torch.cuda.empty_cache()
     params.update({"enable": _enable})
+    return _enable
 
 
 def get_available_system_prompts():
@@ -297,7 +298,7 @@ def ui():
                                  value=lambda: params["searxng url"])
 
     # Event functions to update the parameters in the backend
-    enable.change(toggle_extension, enable, None)
+    enable.input(toggle_extension, enable, enable)
     use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
     ensemble_weighting.change(lambda x: params.update({"ensemble weighting": x}), ensemble_weighting, None)
