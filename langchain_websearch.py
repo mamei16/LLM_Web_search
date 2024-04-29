@@ -40,10 +40,12 @@ class LangchainCompressor:
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                          cache_dir=model_cache_dir).to(self.device)
+            self.splade_doc_model.to_bettertransformer()
             self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                            cache_dir=model_cache_dir).to(self.device)
+            self.splade_query_model.to_bettertransformer()
             self.splade_batch_size = splade_batch_size
         self.spaces_regex = re.compile(r" {3,}")
         self.num_results = num_results
