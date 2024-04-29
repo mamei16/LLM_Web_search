@@ -357,8 +357,6 @@ def ui():
     # A dummy checkbox to enable the actual "Force web search" checkbox to trigger a gradio event
     force_search_checkbox = gr.Checkbox(value=False, visible=False, elem_id="Force-search-checkbox")
     force_search_checkbox.change(toggle_forced_search, force_search_checkbox, None)
-    dummy_comp = gr.Button(visible=False)  # only used to load custom javascript
-    dummy_comp.click(None, None, None, js=f'() => {{{custom_js()};}}')
 
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
