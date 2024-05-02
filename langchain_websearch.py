@@ -65,6 +65,7 @@ class LangchainCompressor:
         return text
 
     def retrieve_documents(self, query: str, url_list: list[str]) -> list[Document]:
+        yield "Downloading webpages..."
         html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
         html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
         if not html_url_tupls:
@@ -78,8 +79,9 @@ class LangchainCompressor:
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
-
+        yield "Chunking page texts..."
         split_docs = text_splitter.split_documents(documents)
+        yield "Retrieving relevant results..."
         # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": self.num_results}

@@ -12,7 +12,7 @@ import modules.shared as shared
 from modules import chat, ui as ui_module
 from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
-from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng
+from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
 from .langchain_websearch import LangchainCompressor
 
 
@@ -391,9 +391,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
 
     web_search = False
     read_webpage = False
-    future_to_search_term = {}
-    future_to_url = {}
-    matched_patterns = {}
     max_search_results = int(params["search results per query"])
     instant_answers = params["instant answers"]
     # regular_search_results = params["regular search results"]
@@ -424,103 +421,73 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         question += f" {params['force search prefix']}"
 
     reply = None
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+    for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
 
-            if force_search:
-                reply = params["force search prefix"] + reply
+        if force_search:
+            reply = params["force search prefix"] + reply
 
-            search_re_match = compiled_search_command_regex.search(reply)
-            if search_re_match is not None:
-                matched_pattern = search_re_match.group(0)
-                if matched_patterns.get(matched_pattern):
-                    continue
-                web_search = True
-                matched_patterns[matched_pattern] = True
-                search_term = search_re_match.group(1)
-                print(f"LLM_Web_search | Searching for {search_term}...")
-                if searxng_url == "":
-                    future_to_search_term[executor.submit(langchain_search_duckduckgo,
-                                                          search_term,
-                                                          langchain_compressor,
-                                                          max_search_results,
-                                                          instant_answers)] = search_term
-                else:
-                    future_to_search_term[executor.submit(langchain_search_searxng,
-                                                          search_term,
-                                                          searxng_url,
-                                                          langchain_compressor,
-                                                          max_search_results)] = search_term
-
-            search_re_match = compiled_open_url_command_regex.search(reply)
-            if search_re_match is not None:
-                matched_pattern = search_re_match.group(0)
-                if matched_patterns.get(matched_pattern):
-                    continue
-                read_webpage = True
-                matched_patterns[matched_pattern] = True
-                url = search_re_match.group(1)
-                print(f"LLM_Web_search | Reading {url}...")
-                future_to_url[executor.submit(get_webpage_content, url)] = url
-
-            # Stop model if either command has been detected in the output
-            if web_search or read_webpage:
-                yield reply
-                break
+        search_re_match = compiled_search_command_regex.search(reply)
+        if search_re_match is not None:
             yield reply
-
-        original_model_reply = reply
-
-        if web_search:
-            reply += "\n```"
+            original_model_reply = reply
+            web_search = True
+            search_term = search_re_match.group(1)
+            print(f"LLM_Web_search | Searching for {search_term}...")
+            reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
-            if display_search_results:
-                yield reply
-                time.sleep(0.041666666666666664)
             result_count = 0
-            for i, future in enumerate(concurrent.futures.as_completed(future_to_search_term)):
-                search_term = future_to_search_term[future]
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    exception_message = str(exc)
-                    result_count = -max_search_results
-                    reply += f"The search tool encountered an error: {exception_message}"
-                    print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
-                else:
-                    if data != "":
-                        result_count += 1
-                        reply += data
-                        if display_search_results:
-                            yield reply
-                            time.sleep(0.041666666666666664)
+            if searxng_url == "":
+                search_generator = Generator(langchain_search_duckduckgo(search_term,
+                                                                         langchain_compressor,
+                                                                         max_search_results,
+                                                                         instant_answers))
+            else:
+                search_generator = Generator(langchain_search_searxng(search_term,
+                                                                      searxng_url,
+                                                                      langchain_compressor,
+                                                                      max_search_results))
+            try:
+                for status_message in search_generator:
+                    yield original_model_reply + f"\n*{status_message}*"
+                search_results = search_generator.value
+            except Exception as exc:
+                exception_message = str(exc)
+                result_count = -max_search_results
+                reply += f"The search tool encountered an error: {exception_message}"
+                print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
+            else:
+                if search_results != "":
+                    result_count += 1
+                    reply += search_results
             if result_count == 0:
                 reply += f"\nThe search tool did not return any results."
             reply += "```"
             if display_search_results:
                 yield reply
-        elif read_webpage:
-            reply += "\n```"
+            break
+
+        open_url_re_match = compiled_open_url_command_regex.search(reply)
+        if open_url_re_match is not None:
+            yield reply
+            original_model_reply = reply
+            read_webpage = True
+            url = open_url_re_match.group(1)
+            print(f"LLM_Web_search | Reading {url}...")
+            reply += "\n```plaintext"
             reply += "\nURL opener tool:\n"
-            if display_webpage_content:
-                yield reply
-                time.sleep(0.041666666666666664)
-            for i, future in enumerate(concurrent.futures.as_completed(future_to_url)):
-                url = future_to_url[future]
-                try:
-                    data = future.result()
-                except Exception as exc:
-                    reply += f"Couldn't open {url}. Error message: {str(exc)}"
-                    print(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
-                else:
-                    reply += f"\nText content of {url}:\n"
-                    reply += data
-                    if display_webpage_content:
-                        yield reply
-                        time.sleep(0.041666666666666664)
+            try:
+                webpage_content = get_webpage_content(url)
+            except Exception as exc:
+                reply += f"Couldn't open {url}. Error message: {str(exc)}"
+                print(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
+            else:
+                reply += f"\nText content of {url}:\n"
+                reply += webpage_content
             reply += "```\n"
             if display_webpage_content:
                 yield reply
+            break
+        yield reply
 
     if web_search or read_webpage:
         display_results = web_search and display_search_results or read_webpage and display_webpage_content

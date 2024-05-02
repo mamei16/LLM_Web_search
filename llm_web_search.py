@@ -9,6 +9,17 @@ from langchain.schema import Document
 from .langchain_websearch import docs_to_pretty_str, LangchainCompressor
 
 
+class Generator:
+    """Allows a generator method to return a final value after finishing
+    the generation. Credit: https://stackoverflow.com/a/34073559"""
+    def __init__(self, gen):
+        self.gen = gen
+
+    def __iter__(self):
+        self.value = yield from self.gen
+        return self.value
+
+
 def dict_list_to_pretty_str(data: list[dict]) -> str:
     ret_str = ""
     if isinstance(data, dict):
@@ -58,6 +69,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
                                 instant_answers: bool):
     documents = []
     query = query.strip("\"'")
+    yield f'Searching for "{query}"...'
     with DDGS() as ddgs:
         if instant_answers:
             answer_list = ddgs.answers(query)
@@ -75,8 +87,10 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
                                 max_results=langchain_compressor.num_results):
             results.append(result)
             result_urls.append(result["href"])
-
-    documents.extend(langchain_compressor.retrieve_documents(query, result_urls))
+    retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
+    for status_message in retrieval_gen:
+        yield status_message
+    documents.extend(retrieval_gen.value)
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
@@ -85,6 +99,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
 
 
 def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor, max_results: int):
+    yield f'Searching for "{query}"...'
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
@@ -105,8 +120,10 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
         for result in result_dicts:
             result_urls.append(result["url"])
         pageno += 1
-
-    documents = langchain_compressor.retrieve_documents(query, result_urls)
+    retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
+    for status_message in retrieval_gen:
+        yield status_message
+    documents = retrieval_gen.value
     return docs_to_pretty_str(documents[:max_results])
 
 
