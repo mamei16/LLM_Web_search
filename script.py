@@ -16,8 +16,6 @@ from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, la
 from .langchain_websearch import LangchainCompressor
 
 
-refresh_symbol = '🔄'
-
 params = {
     "display_name": "LLM Web Search",
     "is_tab": True,
@@ -41,7 +39,9 @@ params = {
     "force search prefix": "Search_web",
     "ensemble weighting": 0.5,
     "keyword retriever": "bm25",
-    "splade batch size": 2
+    "splade batch size": 2,
+    "chunking method": "character-based",
+    "chunker breakpoint_threshold_amount": 30
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -284,6 +284,16 @@ def ui():
                                                "Larger values = Faster retrieval (but higher VRAM usage). "
                                                "A good trade-off seems to be setting it = 8",
                                           precision=0)
+        with gr.Row():
+            chunker = gr.Radio([("Character-based", "character-based"),
+                                ("Semantic", "semantic")], label="Chunking method",
+                               value=lambda: params["chunking method"])
+            chunker_breakpoint_threshold_amount = gr.Slider(minimum=1, maximum=100, step=1,
+                                                            value=lambda: params["chunker breakpoint_threshold_amount"],
+                                                            label="Semantic chunking: sentence split threshold (%)",
+                                                            info="Defines how different two consecutive sentences have"
+                                                                 " to be for them to be split into separate chunks",
+                                                            precision=0)
         gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=lambda: params["search results per query"], precision=0)
@@ -307,6 +317,9 @@ def ui():
     ensemble_weighting.change(lambda x: params.update({"ensemble weighting": x}), ensemble_weighting, None)
     keyword_retriever.change(lambda x: params.update({"keyword retriever": x}), keyword_retriever, None)
     splade_batch_size.change(lambda x: params.update({"splade batch size": x}), splade_batch_size, None)
+    chunker.change(lambda x: params.update({"chunking method": x}), chunker, None)
+    chunker_breakpoint_threshold_amount.change(lambda x: params.update({"chunker breakpoint_threshold_amount": x}),
+                                               chunker_breakpoint_threshold_amount, None)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
                                       num_process_search_results, None)
@@ -390,6 +403,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     langchain_compressor.chunk_size = params["chunk size"]
     langchain_compressor.ensemble_weighting = params["ensemble weighting"]
     langchain_compressor.splade_batch_size = params["splade batch size"]
+    langchain_compressor.chunking_method = params["chunking method"]
+    langchain_compressor.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]

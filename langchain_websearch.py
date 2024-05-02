@@ -1,5 +1,4 @@
 import re
-
 import asyncio
 import warnings
 
@@ -23,13 +22,15 @@ except ImportError:
     qrant_client = None
 
 from .qdrant_retriever import MyQdrantSparseVectorRetriever
+from .semantic_chunker import BoundedSemanticChunker
 
 
 class LangchainCompressor:
 
     def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
-                 ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever="bm25",
-                 model_cache_dir: str = None):
+                 ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
+                 model_cache_dir: str = None, chunking_method: str = "character-based",
+                 chunker_breakpoint_threshold_amount: int = 10):
         self.device = device
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device},
                                                 cache_folder=model_cache_dir)
@@ -47,10 +48,13 @@ class LangchainCompressor:
                                                                            cache_dir=model_cache_dir).to(self.device)
             self.splade_query_model.to_bettertransformer()
             self.splade_batch_size = splade_batch_size
+
         self.spaces_regex = re.compile(r" {3,}")
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
+        self.chunking_method = chunking_method
         self.chunk_size = chunk_size
+        self.chunker_breakpoint_threshold_amount = chunker_breakpoint_threshold_amount
         self.ensemble_weighting = ensemble_weighting
         self.keyword_retriever = keyword_retriever
 
@@ -67,8 +71,14 @@ class LangchainCompressor:
             return []
 
         documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
-                                                       separators=["\n\n", "\n", ".", ", ", " ", ""])
+        if self.chunking_method == "semantic":
+            text_splitter = BoundedSemanticChunker(self.embeddings, breakpoint_threshold_type="percentile",
+                                                        breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
+                                                        max_chunk_size=self.chunk_size)
+        else:
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
+                                                                separators=["\n\n", "\n", ".", ", ", " ", ""])
+
         split_docs = text_splitter.split_documents(documents)
         # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
