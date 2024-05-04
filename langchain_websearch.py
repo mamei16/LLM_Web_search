@@ -1,6 +1,7 @@
 import re
 import asyncio
 import warnings
+import logging
 
 import aiohttp
 import requests
@@ -16,6 +17,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_community.document_transformers import EmbeddingsRedundantFilter
 from langchain_community.retrievers import BM25Retriever
 from transformers import AutoTokenizer, AutoModelForMaskedLM
+import optimum.bettertransformer.transformation
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
@@ -41,12 +43,17 @@ class LangchainCompressor:
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                          cache_dir=model_cache_dir).to(self.device)
-            self.splade_doc_model.to_bettertransformer()
             self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                            cache_dir=model_cache_dir).to(self.device)
+            optimum_logger = optimum.bettertransformer.transformation.logger
+            original_log_level = optimum_logger.level
+            # Set the level to 'ERROR' to ignore "The BetterTransformer padding during training warning"
+            optimum_logger.setLevel(logging.ERROR)
+            self.splade_doc_model.to_bettertransformer()
             self.splade_query_model.to_bettertransformer()
+            optimum_logger.setLevel(original_log_level)
             self.splade_batch_size = splade_batch_size
 
         self.spaces_regex = re.compile(r" {3,}")
