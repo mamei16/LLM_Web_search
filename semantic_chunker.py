@@ -11,30 +11,16 @@ from langchain_core.embeddings import Embeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
-def calculate_cosine_distances(sentence_embeddings) -> Tuple[List[float], List[dict]]:
+def calculate_cosine_distances(sentence_embeddings) -> np.array:
     """Calculate cosine distances between sentences.
 
     Args:
-        sentences: List of sentences to calculate distances for.
+        sentence_embeddings: List of sentence embeddings to calculate distances for.
 
     Returns:
-        Tuple of distances and sentences.
+        Distance between each pair of adjacent sentences
     """
-    distances = []
-    for i in range(len(sentence_embeddings) - 1):
-        embedding_current = sentence_embeddings[i]
-        embedding_next = sentence_embeddings[i + 1]
-
-        # Calculate cosine similarity
-        similarity = cosine_similarity([embedding_current], [embedding_next])[0][0]
-
-        # Convert to cosine distance
-        distance = 1 - similarity
-
-        # Append cosine distance to the list
-        distances.append(distance)
-
-    return distances
+    return (1 - cosine_similarity(sentence_embeddings, sentence_embeddings)).flatten()[1::len(sentence_embeddings) + 1]
 
 
 BreakpointThresholdType = Literal["percentile", "standard_deviation", "interquartile"]
@@ -87,7 +73,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         embeddings = self.embeddings.embed_documents(sentences)
         return calculate_cosine_distances(embeddings)
 
-    def _calculate_breakpoint_threshold(self, distances: List[float], alt_breakpoint_threshold_amount=None) -> float:
+    def _calculate_breakpoint_threshold(self, distances: np.array, alt_breakpoint_threshold_amount=None) -> float:
         if alt_breakpoint_threshold_amount is None:
             breakpoint_threshold_amount = self.breakpoint_threshold_amount
         else:
