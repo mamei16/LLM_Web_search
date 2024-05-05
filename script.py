@@ -302,9 +302,9 @@ def ui():
                                                precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
                                                    value=lambda: params["langchain similarity score threshold"])
-        chunk_size = gr.Number(label="Chunk size (Basically, the size of the indivdiual chunks that each webpage will"
-                                     " be split into)", minimum=2, maximum=10000, value=lambda: params["chunk size"],
-                               precision=0)
+        chunk_size = gr.Number(label="Max. chunk size", info="The maximal size of the individual chunks that each webpage will"
+                                     " be split into, in characters", minimum=2, maximum=10000,
+                               value=lambda: params["chunk size"], precision=0)
 
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
