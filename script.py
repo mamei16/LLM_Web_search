@@ -1,6 +1,5 @@
 import time
 import re
-import concurrent.futures
 import json
 import os
 from datetime import datetime
