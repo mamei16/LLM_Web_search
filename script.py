@@ -434,7 +434,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             print(f"LLM_Web_search | Searching for {search_term}...")
             reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
-            result_count = 0
             if searxng_url == "":
                 search_generator = Generator(langchain_search_duckduckgo(search_term,
                                                                          langchain_compressor,
@@ -451,15 +450,13 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 search_results = search_generator.value
             except Exception as exc:
                 exception_message = str(exc)
-                result_count = -max_search_results
                 reply += f"The search tool encountered an error: {exception_message}"
                 print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
             else:
                 if search_results != "":
-                    result_count += 1
                     reply += search_results
-            if result_count == 0:
-                reply += f"\nThe search tool did not return any results."
+                else:
+                    reply += f"\nThe search tool did not return any results."
             reply += "```"
             if display_search_results:
                 yield reply
