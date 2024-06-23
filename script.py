@@ -11,9 +11,13 @@ import modules.shared as shared
 from modules import chat, ui as ui_module
 from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
-from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator, \
-    docs_to_pretty_str
-from .langchain_websearch import LangchainCompressor
+
+try:
+    from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
+    from .langchain_websearch import LangchainCompressor, docs_to_pretty_str
+except ImportError:
+    from llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
+    from langchain_websearch import LangchainCompressor, docs_to_pretty_str
 
 
 params = {

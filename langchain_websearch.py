@@ -18,13 +18,18 @@ from langchain_community.document_transformers import EmbeddingsRedundantFilter
 from langchain_community.retrievers import BM25Retriever
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
+
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
     qrant_client = None
 
-from .qdrant_retriever import MyQdrantSparseVectorRetriever
-from .semantic_chunker import BoundedSemanticChunker
+try:
+    from .qdrant_retriever import MyQdrantSparseVectorRetriever
+    from .semantic_chunker import BoundedSemanticChunker
+except ImportError:
+    from qdrant_retriever import MyQdrantSparseVectorRetriever
+    from semantic_chunker import BoundedSemanticChunker
 
 
 class LangchainCompressor:

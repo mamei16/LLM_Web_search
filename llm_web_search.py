@@ -6,7 +6,10 @@ from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 from langchain.schema import Document
 
-from .langchain_websearch import LangchainCompressor
+try:
+    from .langchain_websearch import LangchainCompressor
+except ImportError:
+    from langchain_websearch import LangchainCompressor
 
 
 class Generator:
