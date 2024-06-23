@@ -1,7 +1,7 @@
 import unittest
 
-from llm_web_search import langchain_search_duckduckgo, Generator
-from langchain_websearch import LangchainCompressor
+from ..llm_web_search import langchain_search_duckduckgo, Generator
+from ..langchain_websearch import LangchainCompressor
 
 
 class MyTestCase(unittest.TestCase):
