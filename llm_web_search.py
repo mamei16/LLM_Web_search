@@ -6,7 +6,7 @@ from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 from langchain.schema import Document
 
-from .langchain_websearch import docs_to_pretty_str, LangchainCompressor
+from .langchain_websearch import LangchainCompressor
 
 
 class Generator:
@@ -81,11 +81,13 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
                                               metadata={"source": answer_dict["url"]})
                 documents.append(instant_answer_doc)
 
-        results = []
+        result_documents = []
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
                                 max_results=langchain_compressor.num_results):
-            results.append(result)
+            result_document = Document(page_content=f"Title: {result['title']}\n{result['body']}",
+                                       metadata={"source": result["href"]})
+            result_documents.append(result_document)
             result_urls.append(result["href"])
     retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
     for status_message in retrieval_gen:
@@ -94,7 +96,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
-        return dict_list_to_pretty_str(results[:max_results])
+        return result_documents[:max_results]
     return documents[:max_results]
 
 
