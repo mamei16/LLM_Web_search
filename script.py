@@ -11,7 +11,8 @@ import modules.shared as shared
 from modules import chat, ui as ui_module
 from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
-from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
+from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator, \
+    docs_to_pretty_str
 from .langchain_websearch import LangchainCompressor
 
 
@@ -447,7 +448,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"
-                search_results = search_generator.value
+                search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
                 reply += f"The search tool encountered an error: {exception_message}"

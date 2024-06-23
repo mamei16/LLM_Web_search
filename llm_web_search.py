@@ -16,8 +16,8 @@ class Generator:
         self.gen = gen
 
     def __iter__(self):
-        self.value = yield from self.gen
-        return self.value
+        self.retval = yield from self.gen
+        return self.retval
 
 
 def dict_list_to_pretty_str(data: list[dict]) -> str:
@@ -90,12 +90,12 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
-    documents.extend(retrieval_gen.value)
+    documents.extend(retrieval_gen.retval)
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
         return dict_list_to_pretty_str(results[:max_results])
-    return docs_to_pretty_str(documents[:max_results])
+    return documents[:max_results]
 
 
 def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor, max_results: int):
@@ -123,8 +123,8 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
     retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
-    documents = retrieval_gen.value
-    return docs_to_pretty_str(documents[:max_results])
+    documents = retrieval_gen.retval
+    return documents[:max_results]
 
 
 def get_webpage_content(url: str) -> str:
