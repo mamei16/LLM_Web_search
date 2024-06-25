@@ -159,7 +159,8 @@ class LangchainCompressor:
 
 
 async def async_download_html(url, headers):
-    async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(10)) as session:
+    async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(10),
+                                     max_field_size=65536) as session:
         try:
             resp = await session.get(url)
             return await resp.text()
