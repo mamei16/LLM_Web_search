@@ -9,6 +9,9 @@ stop_button.style.setProperty("position", "relative");
 stop_button.style.setProperty("top", "15px");
 stop_button.style.setProperty("margin-left", "-10px");
 
+var chat_tab = document.getElementById("chat-tab");
+chat_tab.style.marginTop = "-10px";
+
 var checkbox = document.getElementById("force-search");
 var gradio_force_search_checkbox = document.getElementById("Force-search-checkbox").children[1].firstChild;
 checkbox.addEventListener('change', function() {
