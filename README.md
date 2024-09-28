@@ -1,4 +1,6 @@
 # Give your local LLM the ability to search the web!
+![unit tests](https://github.com/mamei16/LLM_Web_search/actions/workflows/unit_tests.yml/badge.svg?branch=main)
+
 This project gives local LLMs the ability to search the web by outputting a specific
 command. Once the command has been found in the model output using a regular expression,
 [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
