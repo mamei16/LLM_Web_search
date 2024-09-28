@@ -133,11 +133,17 @@ but VRAM usage ramps up quickly with increasing batch size. A batch size of 8 ap
 to be a good trade-off, but the default value is 2 to avoid running out of memory on smaller
 GPUs.
 
+## Chunking Methods
+
+### Character-based Chunking
+
+Naively partitions a website's text into fixed sized chunks without any regard for the text content. This is the default, since it is fast and requires no GPU.
+
+### Semantic Chunking
+
+Tries to partition a website's text into chunks based on semantics. If two consecutive sentences have very different embeddings (based on the cosine distance between their embeddings), a new chunk will be started. How different two consecutive sentences have to be for them to end up in different chunks can be tuned using the ` sentence split threshold` parementer in the UI.  
+For natural language, this method generally produces much better results than character-based chunking. However, it is noticable slower, even when using the GPU.
+
 ## Recommended models
 If you (like me) have ≤ 12 GB VRAM, I recommend using 
-[Llama-3-8B-instruct](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct).
-You can find a matching instruction template in the extension's `instruction_templates`
-folder. Simply copy it to the main web UI's `instruction-templates` folder.
-**Note:** Several existing GGUF versions have a stop token issue, which can be solved by [editing the file's 
-metadata](https://www.reddit.com/r/LocalLLaMA/comments/1c7dkxh/tutorial_how_to_make_llama3instruct_ggufs_less/). A GGUF version where this issue has already been fixed can be found 
-[here](https://huggingface.co/AI-Engine/Meta-Llama-3-8B-Instruct-GGUF/blob/main/Meta-Llama-3-8B-Instruct.Q5_k_m_with_temp_stop_token_fix.gguf).
+[Llama-3.1-8B-instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) or [gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it).
