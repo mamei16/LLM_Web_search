@@ -24,6 +24,9 @@ and the results are appended to the model's output.
   * [Keyword retrievers](#keyword-retrievers)
     + [Okapi BM25](#okapi-bm25)
     + [SPLADE](#splade)
+  * [Chunking Methods](#chunking-methods)
+    + [Character-based Chunking](#character-based-chunking)
+    + [Semantic Chunking](#semantic-chunking)
   * [Recommended models](#recommended-models)
 
 ## Installation
