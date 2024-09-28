@@ -3,6 +3,6 @@ duckduckgo_search==6.2.13
 beautifulsoup4==4.12.3
 langchain==0.2.1
 langchain-community==0.2.1
-unstructured==0.14.2
+unstructured==0.15.12
 rank_bm25==0.2.2
 sentence-transformers==3.0.1
