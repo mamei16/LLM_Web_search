@@ -576,5 +576,4 @@ def history_modifier(history):
         # concatenation of all recursive searches and their model completions, which *do* contain the full results.
         history["internal"][-1][-1] = update_history
         update_history = ""
-    print(history["internal"])
     return history
