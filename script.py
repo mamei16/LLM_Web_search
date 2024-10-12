@@ -506,7 +506,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         if not display_results:
             update_history = f"{reply}\n{update_history}"
     else:
-        if recursive_call:
+        if recursive_call and not display_search_results:
             update_history = f"{reply}\n{update_history}"
 
 
@@ -576,4 +576,5 @@ def history_modifier(history):
         # concatenation of all recursive searches and their model completions, which *do* contain the full results.
         history["internal"][-1][-1] = update_history
         update_history = ""
+    print(history["internal"])
     return history
