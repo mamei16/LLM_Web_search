@@ -50,7 +50,7 @@ params = {
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = None
-update_history = None
+update_history = ""
 force_search = False
 
 
@@ -376,7 +376,7 @@ def ui():
     force_search_checkbox.change(toggle_forced_search, force_search_checkbox, None)
 
 
-def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
+def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
     """
     Overrides the main text generation function.
     :return:
@@ -495,15 +495,19 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         # Add results to context and continue model output
         new_question = chat.generate_chat_prompt(f"{question}{reply}", state)
         new_reply = ""
-        for new_reply in generate_func(new_question, new_question, seed, state,
-                                       stopping_strings, is_chat=is_chat):
+        for new_reply in custom_generate_reply(new_question, new_question, seed, state,
+                                               stopping_strings, is_chat=is_chat, recursive_call=True):
             if display_results:
                 yield f"{reply}\n{new_reply}"
             else:
                 yield f"{original_model_reply}\n{new_reply}"
 
         if not display_results:
-            update_history = [state["textbox"], f"{reply}\n{new_reply}"]
+            update_history = f"{reply}\n{update_history}"
+    else:
+        if recursive_call:
+            update_history = f"{reply}\n{update_history}"
+
 
 
 def output_modifier(string, state, is_chat=False):
@@ -567,6 +571,8 @@ def history_modifier(history):
     """
     global update_history
     if update_history:
-        history["internal"].append(update_history)
-        update_history = None
+        # Replace the last reply in the internal history (which does not contain any search results) with the
+        # concatenation of all recursive searches and their model completions, which *do* contain the full results.
+        history["internal"][-1][-1] = update_history
+        update_history = ""
     return history
