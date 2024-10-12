@@ -452,6 +452,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"
+                yield original_model_reply + "\n*Is typing...*"
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
