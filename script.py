@@ -3,6 +3,7 @@ import re
 import json
 import os
 from datetime import datetime
+from collections import defaultdict
 
 import gradio as gr
 import torch
@@ -50,7 +51,8 @@ params = {
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 langchain_compressor = None
-update_history = None
+update_history = defaultdict(str)
+chat_id = None
 force_search = False
 
 
@@ -171,6 +173,9 @@ def toggle_forced_search(value):
     global force_search
     force_search = value
 
+def update_chat_id(_id):
+    global chat_id
+    chat_id = _id
 
 def ui():
     """
@@ -272,7 +277,7 @@ def ui():
             sys_prompt_filename = gr.Text(label="Filename")
             sys_prompt_save_button = gr.Button("Save Custom system message")
             system_prompt_saved_success_elem = gr.HTML("", visible=False)
-            
+
     gr.Markdown(value='---')
     with gr.Accordion("Advanced settings", open=False):
         ensemble_weighting = gr.Slider(minimum=0, maximum=1, step=0.05, value=lambda: params["ensemble weighting"],
@@ -375,8 +380,11 @@ def ui():
     force_search_checkbox = gr.Checkbox(value=False, visible=False, elem_id="Force-search-checkbox")
     force_search_checkbox.change(toggle_forced_search, force_search_checkbox, None)
 
+    # Add event listener to "Past chats" radio menu to get the current unique chat ID
+    shared.gradio['unique_id'].change(update_chat_id, shared.gradio['unique_id'], None)
 
-def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat):
+
+def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
     """
     Overrides the main text generation function.
     :return:
@@ -452,6 +460,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"
+                yield original_model_reply + "\n*Is typing...*"
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
@@ -495,15 +504,19 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         # Add results to context and continue model output
         new_question = chat.generate_chat_prompt(f"{question}{reply}", state)
         new_reply = ""
-        for new_reply in generate_func(new_question, new_question, seed, state,
-                                       stopping_strings, is_chat=is_chat):
+        for new_reply in custom_generate_reply(new_question, new_question, seed, state,
+                                               stopping_strings, is_chat=is_chat, recursive_call=True):
             if display_results:
                 yield f"{reply}\n{new_reply}"
             else:
                 yield f"{original_model_reply}\n{new_reply}"
 
         if not display_results:
-            update_history = [state["textbox"], f"{reply}\n{new_reply}"]
+            update_history[state["unique_id"]] = f"{reply}\n{update_history[state['unique_id']]}"
+    else:
+        if recursive_call and not display_search_results:
+            update_history[state["unique_id"]] = f"{reply}\n{update_history[state['unique_id']]}"
+
 
 
 def output_modifier(string, state, is_chat=False):
@@ -566,7 +579,9 @@ def history_modifier(history):
     :return:
     """
     global update_history
-    if update_history:
-        history["internal"].append(update_history)
-        update_history = None
+    if update_history[chat_id]:
+        # Replace the last reply in the internal history (which does not contain any search results) with the
+        # concatenation of all recursive searches and their model completions, which *do* contain the full results.
+        history["internal"][-1][-1] = update_history[chat_id]
+        update_history[chat_id] = ""
     return history

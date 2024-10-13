@@ -59,8 +59,7 @@ information about extensions.
 ## Usage
 
 Search queries are extracted from the model's output using a regular expression. This is made easier by prompting the model
-to use a fixed search command (see `system_prompts/` for example prompts).   
-Currently, only a single search query per model chat message is supported.
+to use a fixed search command (see `system_prompts/` for example prompts).
 
 An example workflow of using this extension could be:
 1. Load a model
