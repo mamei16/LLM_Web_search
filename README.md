@@ -143,7 +143,7 @@ Naively partitions a website's text into fixed sized chunks without any regard f
 
 ### Semantic Chunking
 
-Tries to partition a website's text into chunks based on semantics. If two consecutive sentences have very different embeddings (based on the cosine distance between their embeddings), a new chunk will be started. How different two consecutive sentences have to be for them to end up in different chunks can be tuned using the ` sentence split threshold` parementer in the UI.  
+Tries to partition a website's text into chunks based on semantics. If two consecutive sentences have very different embeddings (based on the cosine distance between their embeddings), a new chunk will be started. How different two consecutive sentences have to be for them to end up in different chunks can be tuned using the ` sentence split threshold` parameter in the UI.  
 For natural language, this method generally produces much better results than character-based chunking. However, it is noticable slower, even when using the GPU.
 
 ## Recommended models
