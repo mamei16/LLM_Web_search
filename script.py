@@ -429,13 +429,13 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     compiled_search_command_regex = re.compile(search_command_regex)
     compiled_open_url_command_regex = re.compile(open_url_command_regex)
 
-    if force_search:
+    if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
 
     reply = None
     for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
 
-        if force_search:
+        if force_search and not recursive_call:
             reply = params["force search prefix"] + reply
 
         search_re_match = compiled_search_command_regex.search(reply)
