@@ -47,7 +47,9 @@ to download the latest code for this extension.
    Otherwise, if you made your own environment, 
    use `conda env update -n <name_of_your_environment> --file environment.yml`  
      (NB: Solving the environment can take a while)
-3. Launch the Web UI with:  
+3. Launch the Web UI by running the appropriate `start` script and enable the extension under the session tab.  
+ Alternatively,
+you can also start the server directly using the following command (assuming you have activated your conda/virtual environment):  
 ```python server.py --extension LLM_Web_search```
 
 If the installation was successful and the extension was loaded, a new tab with the 
@@ -69,7 +71,7 @@ An example workflow of using this extension could be:
 5. Ensure that the query part of the command mentioned in the system message 
 can be matched using the current "Search command regex string" 
 (see "Using a custom regular expression" below)
-6. Pick a hyperparameter generation preset that works well for you.
+6. Pick a generation parameter preset that works well for you. You can read more about generation parameters [here](https://github.com/oobabooga/text-generation-webui/wiki/03-%E2%80%90-Parameters-Tab#generation)
 7. Choose "chat-instruct" or "instruct" mode and start chatting
 
 ### Using a custom regular expression
