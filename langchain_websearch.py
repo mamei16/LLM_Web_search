@@ -2,6 +2,7 @@ import re
 import asyncio
 import warnings
 import logging
+import cProfile
 
 import aiohttp
 import requests
@@ -94,6 +95,8 @@ class LangchainCompressor:
         yield "Chunking page texts..."
         split_docs = text_splitter.split_documents(documents)
         yield "Retrieving relevant results..."
+        #pr = cProfile.Profile()
+        #pr.enable()
         # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": self.num_results}
@@ -153,7 +156,8 @@ class LangchainCompressor:
             weights=[self.ensemble_weighting, 1 - self.ensemble_weighting]
         )
         compressed_docs = ensemble_retriever.invoke(query)
-
+        #pr.disable()
+        #pr.print_stats(sort="cumulative")
         # Ensemble may return more than "num_results" results, so cut off excess ones
         return compressed_docs[:self.num_results]
 

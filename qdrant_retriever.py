@@ -9,6 +9,8 @@ from typing import (
 )
 
 import torch
+from torch.utils.data import Sampler
+import numpy as np
 from langchain_community.retrievers import QdrantSparseVectorRetriever
 from langchain_community.vectorstores.qdrant import Qdrant
 from langchain_core.pydantic_v1 import Field
@@ -23,6 +25,51 @@ except ImportError:
 def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
     for i in range(0, len(_list), batch_size):
         yield _list[i:i + batch_size]
+
+
+class EqualLengthsBatchSampler(Sampler):
+
+    def __init__(self, batch_size, inputs):
+        # Remember batch size and number of samples
+        self.batch_size, self.num_samples = batch_size, len(inputs)
+
+        self.unique_lengths = set()
+        self.length_to_samples = {}
+
+        for i in range(0, len(inputs)):
+            len_input = len(inputs[i])
+
+            # Add length pair to set of all seen pairs
+            self.unique_lengths.add(len_input)
+
+            # For each lengths pair, keep track of which sample indices for this pair
+            # E.g.: self.lengths_to_sample = { (4,5): [3,5,11], (5,5): [1,2,9], ...}
+            if len_input in self.length_to_samples:
+                self.length_to_samples[len_input].append(inputs[i])
+            else:
+                self.length_to_samples[len_input] = [inputs[i]]
+
+        # Convert set of unique length pairs to a list so we can shuffle it later
+        self.unique_lengths = list(self.unique_lengths)
+
+    def __len__(self):
+        return self.num_samples
+
+    def __iter__(self):
+        # Iterate over all possible sentence lengths
+        for length in self.unique_lengths:
+
+            # Get indices of all samples for the current length
+            # for example, all indices of samples with a length of 7
+            sequences = self.length_to_samples[length]
+            #sequences = list(sequences)
+
+            # Compute the number of batches
+            num_batches = np.ceil(len(sequences) / self.batch_size)
+
+            # Loop over all possible batches
+            for batch in np.array_split(sequences, num_batches):
+                yield batch.tolist()
 
 
 class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
@@ -41,7 +88,8 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
-        for text_batch in batchify(texts, batch_size):
+        sampler = EqualLengthsBatchSampler(batch_size, texts)
+        for text_batch in sampler:
             with torch.no_grad():
                 tokens = self.splade_doc_tokenizer(text_batch, truncation=True, padding=True,
                                                    return_tensors="pt").to(self.device)
@@ -83,6 +131,11 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
         **kwargs: Any,
     ):
         client = cast(QdrantClient, self.client)
+
+        # Remove duplicate texts
+        text_to_metadata = {texts[i]: metadatas[i] for i in range(len(texts))}
+        texts = list(text_to_metadata.keys())
+        metadatas = list(text_to_metadata.values())
 
         indices, values = self.compute_document_vectors(texts, self.batch_size)
 

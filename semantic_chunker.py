@@ -158,7 +158,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
             # Slice the sentence_dicts from the current start index to the end index
             group = sentences[start_index : end_index + 1]
             combined_text = " ".join(group)
-            if len(combined_text) <= self.max_chunk_size:
+            if 4 <= len(combined_text) <= self.max_chunk_size:
                 chunks.append(combined_text)
             else:
                 sent_lengths = np.array([len(sd) for sd in group])
@@ -166,8 +166,9 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                 smaller_group = [group[i] for i in good_indices]
                 if smaller_group:
                     combined_text = " ".join(smaller_group)
-                    chunks.append(combined_text)
-                    group = group[good_indices[-1]:]
+                    if len(combined_text) >= 4:
+                        chunks.append(combined_text)
+                        group = group[good_indices[-1]:]
                 bad_sentences.extend(group)
 
             # Update the start index for the next group
@@ -177,7 +178,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         if start_index < len(sentences):
             group = sentences[start_index:]
             combined_text = " ".join(group)
-            if len(combined_text) <= self.max_chunk_size:
+            if 4 <= len(combined_text) <= self.max_chunk_size:
                 chunks.append(combined_text)
             else:
                 sent_lengths = np.array([len(sd) for sd in group])
@@ -185,8 +186,9 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                 smaller_group = [group[i] for i in good_indices]
                 if smaller_group:
                     combined_text = " ".join(smaller_group)
-                    chunks.append(combined_text)
-                    group = group[good_indices[-1]:]
+                    if len(combined_text) >= 4:
+                        chunks.append(combined_text)
+                        group = group[good_indices[-1]:]
                 bad_sentences.extend(group)
 
         # If pure semantic chunking wasn't able to split all text for any breakpoint_threshold_amount,
