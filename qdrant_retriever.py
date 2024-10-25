@@ -27,14 +27,14 @@ def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
         yield _list[i:i + batch_size]
 
 
-class EqualLengthsBatchSampler(Sampler):
+class EqualLengthsBatchifyer(Sampler):
 
     def __init__(self, batch_size, inputs):
         # Remember batch size and number of samples
         self.batch_size, self.num_samples = batch_size, len(inputs)
 
         self.unique_lengths = set()
-        self.length_to_samples = {}
+        self.length_to_sample_indices = {}
 
         for i in range(0, len(inputs)):
             len_input = len(inputs[i])
@@ -44,10 +44,10 @@ class EqualLengthsBatchSampler(Sampler):
 
             # For each lengths pair, keep track of which sample indices for this pair
             # E.g.: self.lengths_to_sample = { (4,5): [3,5,11], (5,5): [1,2,9], ...}
-            if len_input in self.length_to_samples:
-                self.length_to_samples[len_input].append(inputs[i])
+            if len_input in self.length_to_sample_indices:
+                self.length_to_sample_indices[len_input].append(i)
             else:
-                self.length_to_samples[len_input] = [inputs[i]]
+                self.length_to_sample_indices[len_input] = [i]
 
         # Convert set of unique length pairs to a list so we can shuffle it later
         self.unique_lengths = list(self.unique_lengths)
@@ -61,15 +61,15 @@ class EqualLengthsBatchSampler(Sampler):
 
             # Get indices of all samples for the current length
             # for example, all indices of samples with a length of 7
-            sequences = self.length_to_samples[length]
+            sequence_indices = self.length_to_sample_indices[length]
             #sequences = list(sequences)
 
             # Compute the number of batches
-            num_batches = np.ceil(len(sequences) / self.batch_size)
+            num_batches = np.ceil(len(sequence_indices) / self.batch_size)
 
             # Loop over all possible batches
-            for batch in np.array_split(sequences, num_batches):
-                yield batch.tolist()
+            for batch_indices in np.array_split(sequence_indices, num_batches):
+                yield batch_indices
 
 
 class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
@@ -88,10 +88,13 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
-        sampler = EqualLengthsBatchSampler(batch_size, texts)
-        for text_batch in sampler:
+        sampler = EqualLengthsBatchifyer(batch_size, texts)
+        texts = np.array(texts)
+        batch_indices = []
+        for index_batch in sampler:
+            batch_indices.append(index_batch)
             with torch.no_grad():
-                tokens = self.splade_doc_tokenizer(text_batch, truncation=True, padding=True,
+                tokens = self.splade_doc_tokenizer(texts[index_batch].tolist(), truncation=True, padding=True,
                                                    return_tensors="pt").to(self.device)
                 output = self.splade_doc_model(**tokens)
             logits, attention_mask = output.logits, tokens.attention_mask
@@ -104,6 +107,12 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
                 indices.append(batch.nonzero(as_tuple=True)[0].numpy())
                 values.append(batch[indices[-1]].numpy())
 
+        # Restore order after EqualLengthsBatchifyer disrupted it:
+        # Ensure that the order of 'indices' and 'values' matches the order of the input 'texts'
+        batch_indices = np.concatenate(batch_indices)
+        sorted_indices = np.argsort(batch_indices)
+        indices = [indices[i] for i in sorted_indices]
+        values = [values[i] for i in sorted_indices]
         return indices, values
 
     def compute_query_vector(self, text: str):
