@@ -93,8 +93,8 @@ class LangchainCompressor:
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Chunking page texts..."
         split_docs = text_splitter.split_documents(documents)
+
         yield "Retrieving relevant results..."
-        # filtered_docs = pipeline_compressor.compress_documents(documents, query)
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": self.num_results}
         )
