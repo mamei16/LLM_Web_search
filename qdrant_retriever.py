@@ -41,7 +41,6 @@ class SimilarLengthsBatchifyer:
         for i in range(0, len(inputs)):
             len_input = len(inputs[i])
 
-            # Add length pair to set of all seen pairs
             self.unique_lengths.add(len_input)
 
             # For each length, keep track of the indices of the samples that have this length
