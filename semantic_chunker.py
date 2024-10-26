@@ -47,6 +47,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
             breakpoint_threshold_amount: Optional[float] = None,
             number_of_chunks: Optional[int] = None,
             max_chunk_size: int = 500,
+            min_chunk_size: int = 4
     ):
         self._add_start_index = add_start_index
         self.embeddings = embeddings
@@ -60,6 +61,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         else:
             self.breakpoint_threshold_amount = breakpoint_threshold_amount
         self.max_chunk_size = max_chunk_size
+        self.min_chunk_size = min_chunk_size
         # Splitting the text on '.', '?', and '!'
         self.sentence_split_regex = re.compile(r"(?<=[.?!])\s+")
 
@@ -132,7 +134,6 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
             return sentences
 
         bad_sentences = []
-        num_good_sentences = 0
 
         distances = self._calculate_sentence_distances(sentences)
 
@@ -158,7 +159,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
             # Slice the sentence_dicts from the current start index to the end index
             group = sentences[start_index : end_index + 1]
             combined_text = " ".join(group)
-            if 4 <= len(combined_text) <= self.max_chunk_size:
+            if self.min_chunk_size <= len(combined_text) <= self.max_chunk_size:
                 chunks.append(combined_text)
             else:
                 sent_lengths = np.array([len(sd) for sd in group])
@@ -166,7 +167,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                 smaller_group = [group[i] for i in good_indices]
                 if smaller_group:
                     combined_text = " ".join(smaller_group)
-                    if len(combined_text) >= 4:
+                    if len(combined_text) >= self.min_chunk_size:
                         chunks.append(combined_text)
                         group = group[good_indices[-1]:]
                 bad_sentences.extend(group)
@@ -178,7 +179,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         if start_index < len(sentences):
             group = sentences[start_index:]
             combined_text = " ".join(group)
-            if 4 <= len(combined_text) <= self.max_chunk_size:
+            if self.min_chunk_size <= len(combined_text) <= self.max_chunk_size:
                 chunks.append(combined_text)
             else:
                 sent_lengths = np.array([len(sd) for sd in group])
@@ -186,7 +187,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                 smaller_group = [group[i] for i in good_indices]
                 if smaller_group:
                     combined_text = " ".join(smaller_group)
-                    if len(combined_text) >= 4:
+                    if len(combined_text) >= self.min_chunk_size:
                         chunks.append(combined_text)
                         group = group[good_indices[-1]:]
                 bad_sentences.extend(group)
@@ -196,8 +197,9 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         if len(bad_sentences) > 0:
             recursive_splitter = RecursiveCharacterTextSplitter(chunk_size=self.max_chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
-            remaining_text = "".join(bad_sentences)
-            chunks.extend(recursive_splitter.split_text(remaining_text))
+            for bad_sentence in bad_sentences:
+                if len(bad_sentence) >= self.min_chunk_size:
+                    chunks.extend(recursive_splitter.split_text(bad_sentence))
         return chunks
 
     def create_documents(
