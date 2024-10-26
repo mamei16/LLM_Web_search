@@ -9,7 +9,6 @@ from typing import (
 )
 
 import torch
-from torch.utils.data import Sampler
 import numpy as np
 from langchain_community.retrievers import QdrantSparseVectorRetriever
 from langchain_community.vectorstores.qdrant import Qdrant
