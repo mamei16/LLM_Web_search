@@ -27,9 +27,12 @@ def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
         yield _list[i:i + batch_size]
 
 
-class EqualLengthsBatchifyer(Sampler):
-
-    def __init__(self, batch_size, inputs):
+class SimilarLengthsBatchifyer:
+    """
+    Generator class to split samples into batches. Groups sample sequences
+    of equal/similar length together to minimize the need for padding within a batch.
+    """
+    def __init__(self, batch_size, inputs, max_padding_len=10):
         # Remember batch size and number of samples
         self.batch_size, self.num_samples = batch_size, len(inputs)
 
@@ -42,15 +45,28 @@ class EqualLengthsBatchifyer(Sampler):
             # Add length pair to set of all seen pairs
             self.unique_lengths.add(len_input)
 
-            # For each lengths pair, keep track of which sample indices for this pair
-            # E.g.: self.lengths_to_sample = { (4,5): [3,5,11], (5,5): [1,2,9], ...}
+            # For each length, keep track of the indices of the samples that have this length
+            # E.g.: self.length_to_sample_indices = { 3: [3,5,11], 4: [1,2], ...}
             if len_input in self.length_to_sample_indices:
                 self.length_to_sample_indices[len_input].append(i)
             else:
                 self.length_to_sample_indices[len_input] = [i]
 
-        # Convert set of unique length pairs to a list so we can shuffle it later
-        self.unique_lengths = list(self.unique_lengths)
+        # Merge samples of similar lengths in those cases where the amount of samples
+        # of a particular length is < batch_size
+        self.unique_lengths = sorted(list(self.unique_lengths))
+        accum_len_diff = 0
+        for i in range(1, len(self.unique_lengths)):
+            if accum_len_diff > max_padding_len:
+                accum_len_diff = 0
+                continue
+            curr_len = self.unique_lengths[i]
+            prev_len = self.unique_lengths[i-1]
+            len_diff = curr_len - prev_len
+            if len_diff <= max_padding_len and len(self.length_to_sample_indices[curr_len]) < batch_size:
+                self.length_to_sample_indices[curr_len].extend(self.length_to_sample_indices[prev_len])
+                self.length_to_sample_indices[prev_len] = []
+                accum_len_diff += len_diff
 
     def __len__(self):
         return self.num_samples
@@ -62,7 +78,8 @@ class EqualLengthsBatchifyer(Sampler):
             # Get indices of all samples for the current length
             # for example, all indices of samples with a length of 7
             sequence_indices = self.length_to_sample_indices[length]
-            #sequences = list(sequences)
+            if len(sequence_indices) == 0:
+                continue
 
             # Compute the number of batches
             num_batches = np.ceil(len(sequence_indices) / self.batch_size)
@@ -88,10 +105,10 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
-        sampler = EqualLengthsBatchifyer(batch_size, texts)
+        batchifyer = SimilarLengthsBatchifyer(batch_size, texts)
         texts = np.array(texts)
         batch_indices = []
-        for index_batch in sampler:
+        for index_batch in batchifyer:
             batch_indices.append(index_batch)
             with torch.no_grad():
                 tokens = self.splade_doc_tokenizer(texts[index_batch].tolist(), truncation=True, padding=True,
@@ -107,8 +124,8 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
                 indices.append(batch.nonzero(as_tuple=True)[0].numpy())
                 values.append(batch[indices[-1]].numpy())
 
-        # Restore order after EqualLengthsBatchifyer disrupted it:
-        # Ensure that the order of 'indices' and 'values' matches the order of the input 'texts'
+        # Restore order after SimilarLengthsBatchifyer disrupted it:
+        # Ensure that the order of 'indices' and 'values' matches the order of the 'texts' parameter
         batch_indices = np.concatenate(batch_indices)
         sorted_indices = np.argsort(batch_indices)
         indices = [indices[i] for i in sorted_indices]
