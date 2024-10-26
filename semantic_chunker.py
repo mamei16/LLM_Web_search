@@ -192,7 +192,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                         group = group[good_indices[-1]:]
                 bad_sentences.extend(group)
 
-        # If pure semantic chunking wasn't able to split all text for any breakpoint_threshold_amount,
+        # If pure semantic chunking wasn't able to split all text,
         # split the remaining problematic text using a recursive character splitter instead
         if len(bad_sentences) > 0:
             recursive_splitter = RecursiveCharacterTextSplitter(chunk_size=self.max_chunk_size, chunk_overlap=10,
