@@ -50,9 +50,13 @@ class SimilarLengthsBatchifyer:
             else:
                 self.length_to_sample_indices[len_input] = [i]
 
-        # Merge samples of similar lengths in those cases where the amount of samples
-        # of a particular length is < batch_size
+        # Use a dynamic batch size to speed up inference at a constant VRAM usage
         self.unique_lengths = sorted(list(self.unique_lengths))
+        max_chars_per_batch = self.unique_lengths[-1] * self.batch_size
+        self.length_to_batch_size = {length: int(max_chars_per_batch / (length * self.batch_size)) * self.batch_size for length in self.unique_lengths}
+
+        # Merge samples of similar lengths in those cases where the amount of samples
+        # of a particular length is < dynamic batch size
         accum_len_diff = 0
         for i in range(1, len(self.unique_lengths)):
             if accum_len_diff >= max_padding_len:
@@ -62,7 +66,8 @@ class SimilarLengthsBatchifyer:
             prev_len = self.unique_lengths[i-1]
             len_diff = curr_len - prev_len
             if (len_diff <= max_padding_len and
-                    (len(self.length_to_sample_indices[curr_len]) < batch_size or len(self.length_to_sample_indices[prev_len]) < batch_size)):
+                    (len(self.length_to_sample_indices[curr_len]) < self.length_to_batch_size[curr_len]
+                     or len(self.length_to_sample_indices[prev_len]) < self.length_to_batch_size[prev_len])):
                 self.length_to_sample_indices[curr_len].extend(self.length_to_sample_indices[prev_len])
                 self.length_to_sample_indices[prev_len] = []
                 accum_len_diff += len_diff
@@ -82,8 +87,10 @@ class SimilarLengthsBatchifyer:
             if len(sequence_indices) == 0:
                 continue
 
+            dyn_batch_size = self.length_to_batch_size[length]
+
             # Compute the number of batches
-            num_batches = np.ceil(len(sequence_indices) / self.batch_size)
+            num_batches = np.ceil(len(sequence_indices) / dyn_batch_size)
 
             # Loop over all possible batches
             for batch_indices in np.array_split(sequence_indices, num_batches):
