@@ -18,8 +18,7 @@ from langchain_community.document_transformers import EmbeddingsRedundantFilter
 from langchain_community.retrievers import BM25Retriever
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
-import pickle
-import cProfile
+
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
@@ -79,10 +78,8 @@ class LangchainCompressor:
 
     def retrieve_documents(self, query: str, url_list: list[str]) -> list[Document]:
         yield "Downloading webpages..."
-        #html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
-        #html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
-        with open("llama_html_tups", "rb") as f:
-            html_url_tupls = pickle.load(f)
+        html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
+        html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
         if not html_url_tupls:
             return []
 
@@ -98,8 +95,6 @@ class LangchainCompressor:
         split_docs = text_splitter.split_documents(documents)
 
         yield "Retrieving relevant results..."
-        pr = cProfile.Profile()
-        pr.enable()
         faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
             search_kwargs={"k": self.num_results}
         )
@@ -158,8 +153,7 @@ class LangchainCompressor:
             weights=[self.ensemble_weighting, 1 - self.ensemble_weighting]
         )
         compressed_docs = ensemble_retriever.invoke(query)
-        pr.disable()
-        pr.print_stats(sort="cumulative")
+
         # Ensemble may return more than "num_results" results, so cut off excess ones
         return compressed_docs[:self.num_results]
 
