@@ -166,8 +166,8 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
     ):
         client = cast(QdrantClient, self.client)
 
-        # Remove duplicate texts
-        text_to_metadata = {texts[i]: metadatas[i] for i in range(len(texts))}
+        # Remove duplicate and empty texts
+        text_to_metadata = {texts[i]: metadatas[i] for i in range(len(texts)) if len(texts[i]) > 0}
         texts = list(text_to_metadata.keys())
         metadatas = list(text_to_metadata.values())
 
