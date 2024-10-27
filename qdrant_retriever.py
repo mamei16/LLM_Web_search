@@ -32,8 +32,8 @@ class SimilarLengthsBatchifyer:
     of equal/similar length together to minimize the need for padding within a batch.
     """
     def __init__(self, batch_size, inputs, max_padding_len=10):
-        # Remember batch size and number of samples
-        self.batch_size, self.num_samples = batch_size, len(inputs)
+        # Remember number of samples
+        self.num_samples = len(inputs)
 
         self.unique_lengths = set()
         self.length_to_sample_indices = {}
@@ -52,8 +52,8 @@ class SimilarLengthsBatchifyer:
 
         # Use a dynamic batch size to speed up inference at a constant VRAM usage
         self.unique_lengths = sorted(list(self.unique_lengths))
-        max_chars_per_batch = self.unique_lengths[-1] * self.batch_size
-        self.length_to_batch_size = {length: int(max_chars_per_batch / (length * self.batch_size)) * self.batch_size for length in self.unique_lengths}
+        max_chars_per_batch = self.unique_lengths[-1] * batch_size
+        self.length_to_batch_size = {length: int(max_chars_per_batch / (length * batch_size)) * batch_size for length in self.unique_lengths}
 
         # Merge samples of similar lengths in those cases where the amount of samples
         # of a particular length is < dynamic batch size
