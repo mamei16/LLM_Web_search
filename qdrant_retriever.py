@@ -55,16 +55,19 @@ class SimilarLengthsBatchifyer:
         self.unique_lengths = sorted(list(self.unique_lengths))
         accum_len_diff = 0
         for i in range(1, len(self.unique_lengths)):
-            if accum_len_diff > max_padding_len:
+            if accum_len_diff >= max_padding_len:
                 accum_len_diff = 0
                 continue
             curr_len = self.unique_lengths[i]
             prev_len = self.unique_lengths[i-1]
             len_diff = curr_len - prev_len
-            if len_diff <= max_padding_len and len(self.length_to_sample_indices[curr_len]) < batch_size:
+            if (len_diff <= max_padding_len and
+                    (len(self.length_to_sample_indices[curr_len]) < batch_size or len(self.length_to_sample_indices[prev_len]) < batch_size)):
                 self.length_to_sample_indices[curr_len].extend(self.length_to_sample_indices[prev_len])
                 self.length_to_sample_indices[prev_len] = []
                 accum_len_diff += len_diff
+            else:
+                accum_len_diff = 0
 
     def __len__(self):
         return self.num_samples
