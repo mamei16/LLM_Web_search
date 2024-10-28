@@ -6,3 +6,4 @@ langchain-community==0.2.1
 unstructured==0.15.13
 rank_bm25==0.2.2
 sentence-transformers==3.0.1
+optimum==1.23.2
