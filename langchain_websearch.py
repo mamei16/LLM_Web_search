@@ -153,8 +153,8 @@ class LangchainCompressor:
             retrievers=[compression_retriever, keyword_retriever],
             weights=[self.ensemble_weighting, 1 - self.ensemble_weighting]
         )
-
         compressed_docs = ensemble_retriever.invoke(query)
+
         # Ensemble may return more than "num_results" results, so cut off excess ones
         return compressed_docs[:self.num_results]
 
