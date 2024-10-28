@@ -471,7 +471,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                     reply += search_results
                 else:
                     reply += f"\nThe search tool did not return any results."
-            reply += "```"
+            reply += "```\n"
             if display_search_results:
                 yield reply
             break
@@ -507,7 +507,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         for new_reply in custom_generate_reply(new_question, new_question, seed, state,
                                                stopping_strings, is_chat=is_chat, recursive_call=True):
             if display_results:
-                yield f"{reply}\n{new_reply}"
+                yield f"{reply}{new_reply}"
             else:
                 yield f"{original_model_reply}\n{new_reply}"
 
