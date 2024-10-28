@@ -40,7 +40,8 @@ class LangchainCompressor:
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10):
         self.device = device
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2", model_kwargs={"device": device},
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2",
+                                                model_kwargs={"device": device, "model_kwargs": {"torch_dtype": torch.float16}},
                                                 cache_folder=model_cache_dir)
         if keyword_retriever == "splade":
             if "QdrantClient" not in globals():
