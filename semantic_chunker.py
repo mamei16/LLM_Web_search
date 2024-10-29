@@ -72,7 +72,7 @@ class BoundedSemanticChunker:
         """Split text into multiple components."""
         sentences = list(map(lambda x: x.replace("\n", " "), sentences))
         embeddings = self.embeddings.encode(sentences)
-        return calculate_cosine_distances(embeddings)
+        return calculate_cosine_distances(embeddings.tolist())
 
     def _calculate_breakpoint_threshold(self, distances: np.array, alt_breakpoint_threshold_amount=None) -> float:
         if alt_breakpoint_threshold_amount is None:
