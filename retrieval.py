@@ -17,7 +17,7 @@ from sentence_transformers import SentenceTransformer
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
-    qrant_client = None
+    pass
 
 try:
     from .retrievers.faiss_retriever import FaissRetriever
@@ -46,7 +46,7 @@ class DocumentRetriever:
                                                    device=device, model_kwargs={"torch_dtype": torch.float16})
         if keyword_retriever == "splade":
             if "QdrantClient" not in globals():
-                raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client")
+                raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client'")
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
