@@ -24,6 +24,13 @@ class BM25Retriever:
     preprocess_func: Callable[[str], List[str]] = default_preprocessing_func
     """ Preprocessing function to use on the text before BM25 vectorization."""
 
+    def __init__(self, vectorizer: Any, docs: List[Document], k: int = 4,
+                 preprocess_func: Callable[[str], List[str]] = default_preprocessing_func):
+        self.vectorizer = vectorizer
+        self.docs = docs
+        self.k = k
+        self.preprocess_func = preprocess_func
+
     @classmethod
     def from_texts(
         cls,
@@ -83,7 +90,7 @@ class BM25Retriever:
             **kwargs,
         )
 
-    def _get_relevant_documents(self, query: str) -> List[Document]:
+    def get_relevant_documents(self, query: str) -> List[Document]:
         processed_query = self.preprocess_func(query)
         return_docs = self.vectorizer.get_top_n(processed_query, self.docs, n=self.k)
         return return_docs
