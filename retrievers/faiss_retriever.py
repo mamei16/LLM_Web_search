@@ -23,7 +23,6 @@ class FaissRetriever:
         self.document_embeddings = self.embedding_model.encode([doc.page_content for doc in documents])
         self.index.add(self.document_embeddings)
 
-
     def get_relevant_documents(self, query: str) -> List[Document]:
         query_embedding = self.embedding_model.encode(query)
         D, I = self.index.search(query_embedding.reshape(1, -1), self.num_results)
