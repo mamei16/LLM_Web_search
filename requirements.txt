@@ -1,8 +1,6 @@
 faiss-cpu==1.8.0.post1
 duckduckgo_search==6.3.1
 beautifulsoup4==4.12.3
-langchain==0.2.1
-langchain-community==0.2.1
 unstructured==0.15.13
 rank_bm25==0.2.2
 sentence-transformers==3.0.1
