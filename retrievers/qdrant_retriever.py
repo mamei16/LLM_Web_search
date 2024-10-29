@@ -5,7 +5,6 @@ from typing import (
     Optional,
     Tuple,
     cast,
-    Generator,
     Dict
 )
 
@@ -228,7 +227,7 @@ class MyQdrantSparseVectorRetriever:
             metadata=metadata,
         )
 
-    def _get_relevant_documents(self, query: str) -> List[Document]:
+    def get_relevant_documents(self, query: str) -> List[Document]:
         client = cast(QdrantClient, self.client)
         query_indices, query_values = self.compute_query_vector(query)
 
@@ -276,4 +275,4 @@ class MyQdrantSparseVectorRetriever:
 
             retriever.invoke("query")
         """
-        return self._get_relevant_documents(input)
+        return self.get_relevant_documents(input)

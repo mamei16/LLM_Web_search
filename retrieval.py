@@ -14,23 +14,24 @@ from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
 from sentence_transformers import SentenceTransformer
 
-
-import faiss
-import numpy as np
-
-
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
     qrant_client = None
 
 try:
+    from .retrievers.faiss_retriever import FaissRetriever
+    from .retrievers.bm25_retriever import BM25Retriever
     from .retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
+    from .chunkers.character_chunker import RecursiveCharacterTextSplitter
     from .utils import Document, cosine_similarity
 except ImportError:
+    from retrievers.faiss_retriever import FaissRetriever
+    from retrievers.bm25_retriever import BM25Retriever
     from retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
+    from chunkers.character_chunker import RecursiveCharacterTextSplitter
     from utils import Document, cosine_similarity
 
 
@@ -99,11 +100,9 @@ class DocumentRetriever:
         split_docs = text_splitter.split_documents(documents)
 
         yield "Retrieving relevant results..."
-        faiss_index = faiss.IndexFlatL2(384) # TODO: change dimension based on embedding model used
-        document_embeddings = self.embedding_model.encode([doc.page_content for doc in split_docs])
-        faiss_index.add(document_embeddings)
-
-        #return [split_docs[i] for i in I[0]]
+        faiss_retriever = FaissRetriever(self.embedding_model, num_results=self.num_results,
+                                          similarity_threshold=self.similarity_threshold)
+        faiss_retriever.add_documents(split_docs)
 
         #  The sparse keyword retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
@@ -143,25 +142,8 @@ class DocumentRetriever:
         else:
             raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
 
-        query_embedding = self.embedding_model.encode(query)
-        D, I = faiss_index.search(query_embedding.reshape(1, -1), self.num_results)
-        result_indices = I[0]
-        relevant_doc_embeddings = document_embeddings[result_indices]
-        #dense_result_docs = [split_docs[i] for i in I[0]]
-
-        # Filter out redundant documents
-        included_idxs = filter_similar_embeddings(relevant_doc_embeddings, cosine_similarity,
-                                                  threshold=0.95)
-        relevant_doc_embeddings = relevant_doc_embeddings[included_idxs]
-
-        # Filter out documents that aren't similar enough
-        similarity = cosine_similarity([query_embedding], relevant_doc_embeddings)[0]
-        similar_enough = np.where(similarity > self.similarity_threshold)[0]
-        included_idxs = [included_idxs[i] for i in similar_enough]
-
-        filtered_result_indices = result_indices[included_idxs]
-        dense_result_docs = [split_docs[i] for i in filtered_result_indices]
-        sparse_results_docs = keyword_retriever.invoke(query)
+        dense_result_docs = faiss_retriever.get_relevant_documents(query)
+        sparse_results_docs = keyword_retriever.get_relevant_documents(query)
         return weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
                                         weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
@@ -262,22 +244,6 @@ def weighted_reciprocal_rank(doc_lists: List[List[Document]], weights: List[floa
         key=lambda doc: rrf_score[doc.page_content],
     )
     return sorted_docs
-
-
-def filter_similar_embeddings(
-    embedded_documents: List[List[float]], similarity_fn: Callable, threshold: float
-) -> List[int]:
-    """Filter redundant documents based on the similarity of their embeddings."""
-    similarity = np.tril(similarity_fn(embedded_documents, embedded_documents), k=-1)
-    redundant = np.where(similarity > threshold)
-    redundant_stacked = np.column_stack(redundant)
-    redundant_sorted = np.argsort(similarity[redundant])[::-1]
-    included_idxs = set(range(len(embedded_documents)))
-    for first_idx, second_idx in redundant_stacked[redundant_sorted]:
-        if first_idx in included_idxs and second_idx in included_idxs:
-            # Default to dropping the second document of any highly similar pair.
-            included_idxs.remove(second_idx)
-    return list(sorted(included_idxs))
 
 
 def unique_by_key(iterable: Iterable, key: Callable) -> Iterator:
