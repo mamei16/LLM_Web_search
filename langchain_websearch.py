@@ -7,19 +7,19 @@ import aiohttp
 import requests
 import torch
 from bs4 import BeautifulSoup
-from langchain.retrievers.document_compressors import DocumentCompressorPipeline
-from langchain.retrievers.ensemble import EnsembleRetriever
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.retrievers.document_compressors.embeddings_filter import EmbeddingsFilter
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.schema import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_community.document_transformers import EmbeddingsRedundantFilter
-from langchain_community.retrievers import BM25Retriever
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
+from sentence_transformers import SentenceTransformer
 
+
+import pickle
+
+import faiss
+import numpy as np
+
+from utils import Document, weighted_reciprocal_rank, cosine_similarity, filter_similar_embeddings
+from bm25_retriever import BM25Retriever
+from character_chunker import RecursiveCharacterTextSplitter
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
@@ -40,9 +40,8 @@ class LangchainCompressor:
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10):
         self.device = device
-        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2",
-                                                model_kwargs={"device": device, "model_kwargs": {"torch_dtype": torch.float16}},
-                                                cache_folder=model_cache_dir)
+        self.embeddings = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
+                                              device=device, model_kwargs={"torch_dtype": torch.float16})
         if keyword_retriever == "splade":
             if "QdrantClient" not in globals():
                 raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client")
@@ -82,8 +81,10 @@ class LangchainCompressor:
 
     def retrieve_documents(self, query: str, url_list: list[str]) -> list[Document]:
         yield "Downloading webpages..."
-        html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
-        html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
+        #html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
+        #html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
+        with open("obama_html_tups", "rb") as f:
+            html_url_tupls = pickle.load(f)
         if not html_url_tupls:
             return []
 
@@ -99,9 +100,11 @@ class LangchainCompressor:
         split_docs = text_splitter.split_documents(documents)
 
         yield "Retrieving relevant results..."
-        faiss_retriever = FAISS.from_documents(split_docs, self.embeddings).as_retriever(
-            search_kwargs={"k": self.num_results}
-        )
+        faiss_index = faiss.IndexFlatL2(384) # TODO: change dimension based on embedding model used
+        document_embeddings = self.embeddings.encode([doc.page_content for doc in split_docs])
+        faiss_index.add(document_embeddings)
+
+        #return [split_docs[i] for i in I[0]]
 
         #  The sparse keyword retriever is good at finding relevant documents based on keywords,
         #  while the dense retriever is good at finding relevant documents based on semantic similarity.
@@ -134,7 +137,6 @@ class LangchainCompressor:
                 client=client,
                 collection_name=collection_name,
                 sparse_vector_name=vector_name,
-                sparse_encoder=None,
                 batch_size=self.splade_batch_size,
                 k=self.num_results
             )
@@ -142,24 +144,27 @@ class LangchainCompressor:
         else:
             raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
 
-        redundant_filter = EmbeddingsRedundantFilter(embeddings=self.embeddings)
-        embeddings_filter = EmbeddingsFilter(embeddings=self.embeddings, k=None,
-                                             similarity_threshold=self.similarity_threshold)
-        pipeline_compressor = DocumentCompressorPipeline(
-            transformers=[redundant_filter, embeddings_filter]
-        )
+        query_embedding = self.embeddings.encode(query)
+        D, I = faiss_index.search(query_embedding.reshape(1, -1), self.num_results)
+        result_indices = I[0]
+        relevant_doc_embeddings = document_embeddings[result_indices]
+        #dense_result_docs = [split_docs[i] for i in I[0]]
 
-        compression_retriever = ContextualCompressionRetriever(base_compressor=pipeline_compressor,
-                                                               base_retriever=faiss_retriever)
+        # Filter out redundant documents
+        included_idxs = filter_similar_embeddings(relevant_doc_embeddings, cosine_similarity,
+                                                  threshold=0.95)
+        relevant_doc_embeddings = relevant_doc_embeddings[included_idxs]
 
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[compression_retriever, keyword_retriever],
-            weights=[self.ensemble_weighting, 1 - self.ensemble_weighting]
-        )
-        compressed_docs = ensemble_retriever.invoke(query)
+        # Filter out documents that aren't similar enough
+        similarity = cosine_similarity([query_embedding], relevant_doc_embeddings)[0]
+        similar_enough = np.where(similarity > self.similarity_threshold)[0]
+        included_idxs = [included_idxs[i] for i in similar_enough]
 
-        # Ensemble may return more than "num_results" results, so cut off excess ones
-        return compressed_docs[:self.num_results]
+        filtered_result_indices = result_indices[included_idxs]
+        dense_result_docs = [split_docs[i] for i in filtered_result_indices]
+        sparse_results_docs = keyword_retriever.invoke(query)
+        return weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
+                                        weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
 
 async def async_download_html(url, headers):
@@ -179,7 +184,7 @@ async def async_download_html(url, headers):
 
 
 async def async_fetch_urls(urls):
-    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:122340.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
     webpages = await asyncio.gather(*[(async_download_html(url, headers)) for url in urls])

@@ -3,12 +3,10 @@ import re
 from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple, cast
 
 import numpy as np
-from langchain_community.utils.math import (
-    cosine_similarity,
-)
-from langchain_core.documents import BaseDocumentTransformer, Document
-from langchain_core.embeddings import Embeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
+from character_chunker import RecursiveCharacterTextSplitter
+
+from utils import Document, cosine_similarity
 
 
 def calculate_cosine_distances(sentence_embeddings) -> np.array:
@@ -31,7 +29,7 @@ BREAKPOINT_DEFAULTS: Dict[BreakpointThresholdType, float] = {
 }
 
 
-class BoundedSemanticChunker(BaseDocumentTransformer):
+class BoundedSemanticChunker:
     """First splits the text using semantic chunking according to the specified
     'breakpoint_threshold_amount', but then uses a RecursiveCharacterTextSplitter
     to split all chunks that are larger than 'max_chunk_size'.
@@ -40,7 +38,7 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
 
     def __init__(
             self,
-            embeddings: Embeddings,
+            embeddings: SentenceTransformer,
             buffer_size: int = 1,
             add_start_index: bool = False,
             breakpoint_threshold_type: BreakpointThresholdType = "percentile",
@@ -72,7 +70,8 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         self, sentences: List[dict]
     ) -> Tuple[List[float], List[dict]]:
         """Split text into multiple components."""
-        embeddings = self.embeddings.embed_documents(sentences)
+        sentences = list(map(lambda x: x.replace("\n", " "), sentences))
+        embeddings = self.embeddings.encode(sentences)
         return calculate_cosine_distances(embeddings)
 
     def _calculate_breakpoint_threshold(self, distances: np.array, alt_breakpoint_threshold_amount=None) -> float:
