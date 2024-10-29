@@ -14,11 +14,11 @@ from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 
 try:
-    from .llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
-    from .langchain_websearch import LangchainCompressor, docs_to_pretty_str
+    from .llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from .retrieval import DocumentRetriever, docs_to_pretty_str
 except ImportError:
-    from llm_web_search import get_webpage_content, langchain_search_duckduckgo, langchain_search_searxng, Generator
-    from langchain_websearch import LangchainCompressor, docs_to_pretty_str
+    from llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from retrieval import DocumentRetriever, docs_to_pretty_str
 
 
 params = {
@@ -50,7 +50,7 @@ params = {
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
-langchain_compressor = None
+document_retriever = None
 update_history = defaultdict(str)
 chat_id = None
 force_search = False
@@ -89,20 +89,20 @@ def save_settings():
 
 
 def toggle_extension(_enable: bool):
-    global langchain_compressor, custom_system_message_filename
+    global document_retriever, custom_system_message_filename
     if _enable:
-        langchain_compressor = LangchainCompressor(device="cpu" if params["cpu only"] else "cuda",
-                                                   keyword_retriever=params["keyword retriever"],
-                                                   model_cache_dir=os.path.join(extension_path, "hf_models"))
-        compressor_model = langchain_compressor.embeddings.client
-        compressor_model.to(compressor_model._target_device)
+        document_retriever = DocumentRetriever(device="cpu" if params["cpu only"] else "cuda",
+                                               keyword_retriever=params["keyword retriever"],
+                                               model_cache_dir=os.path.join(extension_path, "hf_models"))
+        embedding_model = document_retriever.embedding_model
+        embedding_model.to(embedding_model._target_device)
         custom_system_message_filename = params.get("default system prompt filename")
     else:
-        if not params["cpu only"] and 'langchain_compressor' in globals():  # free some VRAM
+        if not params["cpu only"] and 'document_retriever' in globals():  # free some VRAM
             model_attrs = ["embeddings", "splade_doc_model", "splade_query_model"]
             for model_attr in model_attrs:
-                if hasattr(langchain_compressor, model_attr):
-                    model = getattr(langchain_compressor, model_attr)
+                if hasattr(document_retriever, model_attr):
+                    model = getattr(document_retriever, model_attr)
                     if hasattr(model, "client"):
                         model.client.to("cpu")
                         del model.client
@@ -389,7 +389,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    global update_history, langchain_compressor
+    global update_history, document_retriever
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
@@ -407,13 +407,13 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     instant_answers = params["instant answers"]
     # regular_search_results = params["regular search results"]
 
-    langchain_compressor.num_results = int(params["duckduckgo results per query"])
-    langchain_compressor.similarity_threshold = params["langchain similarity score threshold"]
-    langchain_compressor.chunk_size = params["chunk size"]
-    langchain_compressor.ensemble_weighting = params["ensemble weighting"]
-    langchain_compressor.splade_batch_size = params["splade batch size"]
-    langchain_compressor.chunking_method = params["chunking method"]
-    langchain_compressor.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
+    document_retriever.num_results = int(params["duckduckgo results per query"])
+    document_retriever.similarity_threshold = params["langchain similarity score threshold"]
+    document_retriever.chunk_size = params["chunk size"]
+    document_retriever.ensemble_weighting = params["ensemble weighting"]
+    document_retriever.splade_batch_size = params["splade batch size"]
+    document_retriever.chunking_method = params["chunking method"]
+    document_retriever.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
@@ -448,15 +448,15 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
             if searxng_url == "":
-                search_generator = Generator(langchain_search_duckduckgo(search_term,
-                                                                         langchain_compressor,
-                                                                         max_search_results,
-                                                                         instant_answers))
+                search_generator = Generator(retrieve_from_duckduckgo(search_term,
+                                                                      document_retriever,
+                                                                      max_search_results,
+                                                                      instant_answers))
             else:
-                search_generator = Generator(langchain_search_searxng(search_term,
-                                                                      searxng_url,
-                                                                      langchain_compressor,
-                                                                      max_search_results))
+                search_generator = Generator(retrieve_from_searxng(search_term,
+                                                                   searxng_url,
+                                                                   document_retriever,
+                                                                   max_search_results))
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"

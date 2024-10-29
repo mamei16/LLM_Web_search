@@ -18,30 +18,30 @@ import faiss
 import numpy as np
 
 from utils import Document, weighted_reciprocal_rank, cosine_similarity, filter_similar_embeddings
-from bm25_retriever import BM25Retriever
-from character_chunker import RecursiveCharacterTextSplitter
+from retrievers.bm25_retriever import BM25Retriever
+from chunkers.character_chunker import RecursiveCharacterTextSplitter
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
     qrant_client = None
 
 try:
-    from .qdrant_retriever import MyQdrantSparseVectorRetriever
-    from .semantic_chunker import BoundedSemanticChunker
+    from retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
+    from chunkers.semantic_chunker import BoundedSemanticChunker
 except ImportError:
-    from qdrant_retriever import MyQdrantSparseVectorRetriever
-    from semantic_chunker import BoundedSemanticChunker
+    from retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
+    from chunkers.semantic_chunker import BoundedSemanticChunker
 
 
-class LangchainCompressor:
+class DocumentRetriever:
 
     def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
                  ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10):
         self.device = device
-        self.embeddings = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
-                                              device=device, model_kwargs={"torch_dtype": torch.float16})
+        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
+                                                   device=device, model_kwargs={"torch_dtype": torch.float16})
         if keyword_retriever == "splade":
             if "QdrantClient" not in globals():
                 raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client")
@@ -90,9 +90,9 @@ class LangchainCompressor:
 
         documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
         if self.chunking_method == "semantic":
-            text_splitter = BoundedSemanticChunker(self.embeddings, breakpoint_threshold_type="percentile",
-                                                        breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
-                                                        max_chunk_size=self.chunk_size)
+            text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
+                                                   breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
+                                                   max_chunk_size=self.chunk_size)
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
@@ -101,7 +101,7 @@ class LangchainCompressor:
 
         yield "Retrieving relevant results..."
         faiss_index = faiss.IndexFlatL2(384) # TODO: change dimension based on embedding model used
-        document_embeddings = self.embeddings.encode([doc.page_content for doc in split_docs])
+        document_embeddings = self.embedding_model.encode([doc.page_content for doc in split_docs])
         faiss_index.add(document_embeddings)
 
         #return [split_docs[i] for i in I[0]]

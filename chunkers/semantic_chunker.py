@@ -4,8 +4,8 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from character_chunker import RecursiveCharacterTextSplitter
 
+from character_chunker import RecursiveCharacterTextSplitter
 from utils import Document, cosine_similarity
 
 
@@ -38,7 +38,7 @@ class BoundedSemanticChunker:
 
     def __init__(
             self,
-            embeddings: SentenceTransformer,
+            embedding_model: SentenceTransformer,
             buffer_size: int = 1,
             add_start_index: bool = False,
             breakpoint_threshold_type: BreakpointThresholdType = "percentile",
@@ -48,7 +48,7 @@ class BoundedSemanticChunker:
             min_chunk_size: int = 4
     ):
         self._add_start_index = add_start_index
-        self.embeddings = embeddings
+        self.embedding_model = embedding_model
         self.buffer_size = buffer_size
         self.breakpoint_threshold_type = breakpoint_threshold_type
         self.number_of_chunks = number_of_chunks
@@ -71,7 +71,7 @@ class BoundedSemanticChunker:
     ) -> Tuple[List[float], List[dict]]:
         """Split text into multiple components."""
         sentences = list(map(lambda x: x.replace("\n", " "), sentences))
-        embeddings = self.embeddings.encode(sentences)
+        embeddings = self.embedding_model.encode(sentences)
         return calculate_cosine_distances(embeddings.tolist())
 
     def _calculate_breakpoint_threshold(self, distances: np.array, alt_breakpoint_threshold_amount=None) -> float:
