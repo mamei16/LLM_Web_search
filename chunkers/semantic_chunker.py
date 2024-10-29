@@ -5,8 +5,12 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from character_chunker import RecursiveCharacterTextSplitter
-from utils import Document, cosine_similarity
+try:
+    from ..chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from ..utils import Document, cosine_similarity
+except:
+    from chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from utils import Document, cosine_similarity
 
 
 def calculate_cosine_distances(sentence_embeddings) -> np.array:

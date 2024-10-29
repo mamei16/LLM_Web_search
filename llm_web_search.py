@@ -5,37 +5,13 @@ from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
-from utils import Document
+
 try:
     from .retrieval import DocumentRetriever
+    from .utils import Document, Generator
 except ImportError:
     from retrieval import DocumentRetriever
-
-
-class Generator:
-    """Allows a generator method to return a final value after finishing
-    the generation. Credit: https://stackoverflow.com/a/34073559"""
-    def __init__(self, gen):
-        self.gen = gen
-
-    def __iter__(self):
-        self.retval = yield from self.gen
-        return self.retval
-
-
-def dict_list_to_pretty_str(data: list[dict]) -> str:
-    ret_str = ""
-    if isinstance(data, dict):
-        data = [data]
-    if isinstance(data, list):
-        for i, d in enumerate(data):
-            ret_str += f"Result {i+1}\n"
-            ret_str += f"Title: {d['title']}\n"
-            ret_str += f"{d['body']}\n"
-            ret_str += f"Source URL: {d['href']}\n"
-        return ret_str
-    else:
-        raise ValueError("Input must be dict or list[dict]")
+    from utils import Document, Generator
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,

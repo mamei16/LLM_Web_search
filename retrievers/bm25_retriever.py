@@ -2,7 +2,10 @@ from typing import List, Any, Callable, Iterable, Optional, Dict
 
 from rank_bm25 import BM25Okapi
 
-from utils import Document
+try:
+    from ..utils import Document
+except:
+    from utils import Document
 
 
 def default_preprocessing_func(text: str) -> List[str]:

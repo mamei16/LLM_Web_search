@@ -11,12 +11,16 @@ from typing import (
 
 import torch
 import numpy as np
-from utils import Document
+
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
     pass
 
+try:
+    from ..utils import Document
+except:
+    from utils import Document
 
 class SimilarLengthsBatchifyer:
     """
