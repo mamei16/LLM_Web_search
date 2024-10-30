@@ -1,14 +1,17 @@
-import copy
 import re
-from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple, cast
+from typing import Dict, List, Literal, Optional, Tuple, cast
 
 import numpy as np
-from langchain_community.utils.math import (
-    cosine_similarity,
-)
-from langchain_core.documents import BaseDocumentTransformer, Document
-from langchain_core.embeddings import Embeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sentence_transformers import SentenceTransformer
+
+try:
+    from ..chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from ..chunkers.base_chunker import TextSplitter
+    from ..utils import Document, cosine_similarity
+except:
+    from chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from chunkers.base_chunker import TextSplitter
+    from utils import Document, cosine_similarity
 
 
 def calculate_cosine_distances(sentence_embeddings) -> np.array:
@@ -31,26 +34,20 @@ BREAKPOINT_DEFAULTS: Dict[BreakpointThresholdType, float] = {
 }
 
 
-class BoundedSemanticChunker(BaseDocumentTransformer):
+class BoundedSemanticChunker(TextSplitter):
     """First splits the text using semantic chunking according to the specified
     'breakpoint_threshold_amount', but then uses a RecursiveCharacterTextSplitter
     to split all chunks that are larger than 'max_chunk_size'.
 
     Adapted from langchain_experimental.text_splitter.SemanticChunker"""
 
-    def __init__(
-            self,
-            embeddings: Embeddings,
-            buffer_size: int = 1,
-            add_start_index: bool = False,
-            breakpoint_threshold_type: BreakpointThresholdType = "percentile",
-            breakpoint_threshold_amount: Optional[float] = None,
-            number_of_chunks: Optional[int] = None,
-            max_chunk_size: int = 500,
-            min_chunk_size: int = 4
-    ):
+    def __init__(self, embedding_model: SentenceTransformer, buffer_size: int = 1, add_start_index: bool = False,
+                 breakpoint_threshold_type: BreakpointThresholdType = "percentile",
+                 breakpoint_threshold_amount: Optional[float] = None, number_of_chunks: Optional[int] = None,
+                 max_chunk_size: int = 500, min_chunk_size: int = 4):
+        super().__init__(add_start_index=add_start_index)
         self._add_start_index = add_start_index
-        self.embeddings = embeddings
+        self.embedding_model = embedding_model
         self.buffer_size = buffer_size
         self.breakpoint_threshold_type = breakpoint_threshold_type
         self.number_of_chunks = number_of_chunks
@@ -72,8 +69,9 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
         self, sentences: List[dict]
     ) -> Tuple[List[float], List[dict]]:
         """Split text into multiple components."""
-        embeddings = self.embeddings.embed_documents(sentences)
-        return calculate_cosine_distances(embeddings)
+        sentences = list(map(lambda x: x.replace("\n", " "), sentences))
+        embeddings = self.embedding_model.encode(sentences)
+        return calculate_cosine_distances(embeddings.tolist())
 
     def _calculate_breakpoint_threshold(self, distances: np.array, alt_breakpoint_threshold_amount=None) -> float:
         if alt_breakpoint_threshold_amount is None:
@@ -201,37 +199,4 @@ class BoundedSemanticChunker(BaseDocumentTransformer):
                 if len(bad_sentence) >= self.min_chunk_size:
                     chunks.extend(recursive_splitter.split_text(bad_sentence))
         return chunks
-
-    def create_documents(
-                self, texts: List[str], metadatas: Optional[List[dict]] = None
-        ) -> List[Document]:
-            """Create documents from a list of texts."""
-            _metadatas = metadatas or [{}] * len(texts)
-            documents = []
-            for i, text in enumerate(texts):
-                index = -1
-                for chunk in self.split_text(text):
-                    metadata = copy.deepcopy(_metadatas[i])
-                    if self._add_start_index:
-                        index = text.find(chunk, index + 1)
-                        metadata["start_index"] = index
-                    new_doc = Document(page_content=chunk, metadata=metadata)
-                    documents.append(new_doc)
-            return documents
-
-    def split_documents(self, documents: Iterable[Document]) -> List[Document]:
-        """Split documents."""
-        texts, metadatas = [], []
-        for doc in documents:
-            texts.append(doc.page_content)
-            metadatas.append(doc.metadata)
-        return self.create_documents(texts, metadatas=metadatas)
-
-    def transform_documents(
-            self, documents: Sequence[Document], **kwargs: Any
-    ) -> Sequence[Document]:
-        """Transform sequence of documents by splitting them."""
-        return self.split_documents(list(documents))
-
-
 

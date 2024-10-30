@@ -4,38 +4,14 @@ import requests
 from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
-from langchain.schema import Document
+
 
 try:
-    from .langchain_websearch import LangchainCompressor
+    from .retrieval import DocumentRetriever
+    from .utils import Document, Generator
 except ImportError:
-    from langchain_websearch import LangchainCompressor
-
-
-class Generator:
-    """Allows a generator method to return a final value after finishing
-    the generation. Credit: https://stackoverflow.com/a/34073559"""
-    def __init__(self, gen):
-        self.gen = gen
-
-    def __iter__(self):
-        self.retval = yield from self.gen
-        return self.retval
-
-
-def dict_list_to_pretty_str(data: list[dict]) -> str:
-    ret_str = ""
-    if isinstance(data, dict):
-        data = [data]
-    if isinstance(data, list):
-        for i, d in enumerate(data):
-            ret_str += f"Result {i+1}\n"
-            ret_str += f"Title: {d['title']}\n"
-            ret_str += f"{d['body']}\n"
-            ret_str += f"Source URL: {d['href']}\n"
-        return ret_str
-    else:
-        raise ValueError("Input must be dict or list[dict]")
+    from retrieval import DocumentRetriever
+    from utils import Document, Generator
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
@@ -68,7 +44,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
 
 
-def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompressor, max_results: int,
+def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, max_results: int,
                                 instant_answers: bool):
     documents = []
     query = query.strip("\"'")
@@ -87,12 +63,12 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
         result_documents = []
         result_urls = []
         for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
-                                max_results=langchain_compressor.num_results):
+                                max_results=document_retriever.num_results):
             result_document = Document(page_content=f"Title: {result['title']}\n{result['body']}",
                                        metadata={"source": result["href"]})
             result_documents.append(result_document)
             result_urls.append(result["href"])
-    retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
+    retrieval_gen = Generator(document_retriever.retrieve_documents(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
     documents.extend(retrieval_gen.retval)
@@ -103,7 +79,7 @@ def langchain_search_duckduckgo(query: str, langchain_compressor: LangchainCompr
     return documents[:max_results]
 
 
-def langchain_search_searxng(query: str, url: str, langchain_compressor: LangchainCompressor, max_results: int):
+def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int):
     yield f'Getting results from Searxng...'
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -111,7 +87,7 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
     result_urls = []
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
     pageno = 1
-    while len(result_urls) < langchain_compressor.num_results:
+    while len(result_urls) < document_retriever.num_results:
         response = requests.get(url + request_str + str(pageno), headers=headers)
         if not result_urls:     # no results to lose by raising an exception here
             response.raise_for_status()
@@ -125,7 +101,7 @@ def langchain_search_searxng(query: str, url: str, langchain_compressor: Langcha
         for result in result_dicts:
             result_urls.append(result["url"])
         pageno += 1
-    retrieval_gen = Generator(langchain_compressor.retrieve_documents(query, result_urls))
+    retrieval_gen = Generator(document_retriever.retrieve_documents(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
     documents = retrieval_gen.retval

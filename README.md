@@ -5,7 +5,7 @@ This project gives local LLMs the ability to search the web by outputting a spec
 command. Once the command has been found in the model output using a regular expression,
 [duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
 is used to search the web and return a number of result pages. Finally, an
-ensemble of LangChain's [Contextual compression](https://python.langchain.com/docs/modules/data_connection/retrievers/contextual_compression/) and 
+ensemble of a dense embedding model and 
 [Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) (Or alternatively, [SPLADE](https://github.com/naver/splade))
 is used to extract the relevant parts (if any) of each web page in the search results
 and the results are appended to the model's output.

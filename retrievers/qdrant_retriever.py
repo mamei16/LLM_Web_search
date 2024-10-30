@@ -5,26 +5,21 @@ from typing import (
     Optional,
     Tuple,
     cast,
-    Generator
+    Dict
 )
 
 import torch
 import numpy as np
-from langchain_community.retrievers import QdrantSparseVectorRetriever
-from langchain_community.vectorstores.qdrant import Qdrant
-from langchain_core.pydantic_v1 import Field
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
-from langchain.schema import Document
+
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
     pass
 
-
-def batchify(_list: List, batch_size: int) -> Generator[List, None, None]:
-    for i in range(0, len(_list), batch_size):
-        yield _list[i:i + batch_size]
-
+try:
+    from ..utils import Document
+except:
+    from utils import Document
 
 class SimilarLengthsBatchifyer:
     """
@@ -97,18 +92,31 @@ class SimilarLengthsBatchifyer:
                 yield batch_indices
 
 
-class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
-    splade_doc_tokenizer: Any = Field(repr=False)
-    splade_doc_model: Any = Field(repr=False)
-    splade_query_tokenizer: Any = Field(repr=False)
-    splade_query_model: Any = Field(repr=False)
-    device: Any = Field(repr=False)
-    batch_size: int = Field(repr=False)
-    sparse_encoder: Any or None = Field(repr=False)
+class MyQdrantSparseVectorRetriever:
+    """
+    Based on:
+    https://github.com/langchain-ai/langchain/blob/447c0dd2f051157a3ccdac49a8d5ca6c06ea1401/libs/community/langchain_community/retrievers/qdrant_sparse_vector_retriever.py#L36
+    """
+    def __init__(self, splade_doc_tokenizer, splade_doc_model, splade_query_tokenizer, splade_query_model,
+                 device, client, collection_name, sparse_vector_name, batch_size, k,
+                 content_payload_key: str = "content", metadata_payload_key: str = "metadata", filter = None,
+                 search_options: Dict[str, Any] = {}
 
-    class Config:
-        """Configuration for this pydantic object."""
-        arbitrary_types_allowed = True
+    ):
+        self.splade_doc_tokenizer = splade_doc_tokenizer
+        self.splade_doc_model = splade_doc_model
+        self.splade_query_tokenizer = splade_query_tokenizer
+        self.splade_query_model = splade_query_model
+        self.device = device
+        self.client = client
+        self.collection_name = collection_name
+        self.sparse_vector_name = sparse_vector_name
+        self.batch_size = batch_size
+        self.k = k
+        self.content_payload_key = content_payload_key
+        self.metadata_payload_key = metadata_payload_key
+        self.filter = filter
+        self.search_options = search_options
 
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
@@ -158,6 +166,19 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
 
         return query_indices, query_values
 
+    def add_documents(self, documents: List[Document])-> List[str]:
+        """Run more documents through the embeddings and add to the vectorstore.
+
+        Args:
+            documents (List[Document]: Documents to add to the vectorstore.
+
+        Returns:
+            List[str]: List of IDs of the added texts.
+        """
+        texts = [doc.page_content for doc in documents]
+        metadatas = [doc.metadata for doc in documents]
+        return self.add_texts(texts, metadatas)
+
     def add_texts(
         self,
         texts: Iterable[str],
@@ -193,7 +214,23 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
         if self.device == "cuda":
             torch.cuda.empty_cache()
 
-    def _get_relevant_documents(self, query: str, *, run_manager: CallbackManagerForRetrieverRun) -> List[Document]:
+    @classmethod
+    def _document_from_scored_point(
+        cls,
+        scored_point: Any,
+        collection_name: str,
+        content_payload_key: str,
+        metadata_payload_key: str,
+    ) -> Document:
+        metadata = scored_point.payload.get(metadata_payload_key) or {}
+        metadata["_id"] = scored_point.id
+        metadata["_collection_name"] = collection_name
+        return Document(
+            page_content=scored_point.payload.get(content_payload_key),
+            metadata=metadata,
+        )
+
+    def get_relevant_documents(self, query: str) -> List[Document]:
         client = cast(QdrantClient, self.client)
         query_indices, query_values = self.compute_query_vector(query)
 
@@ -213,7 +250,7 @@ class MyQdrantSparseVectorRetriever(QdrantSparseVectorRetriever):
         )
 
         return [
-            Qdrant._document_from_scored_point(
+            self._document_from_scored_point(
                 point,
                 self.collection_name,
                 self.content_payload_key,
