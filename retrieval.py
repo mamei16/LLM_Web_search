@@ -43,7 +43,8 @@ class DocumentRetriever:
                  chunker_breakpoint_threshold_amount: int = 10):
         self.device = device
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
-                                                   device=device, model_kwargs={"torch_dtype": torch.float16})
+                                                   device=device,
+                                                   model_kwargs={"torch_dtype": torch.float32 if device == "cpu" else torch.float16})
         if keyword_retriever == "splade":
             if "QdrantClient" not in globals():
                 raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client'")
