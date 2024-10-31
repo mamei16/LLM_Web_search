@@ -101,50 +101,57 @@ class DocumentRetriever:
         split_docs = text_splitter.split_documents(documents)
 
         yield "Retrieving relevant results..."
-        faiss_retriever = FaissRetriever(self.embedding_model, num_results=self.num_results,
+        if self.ensemble_weighting > 0:
+            faiss_retriever = FaissRetriever(self.embedding_model, num_results=self.num_results,
                                           similarity_threshold=self.similarity_threshold)
-        faiss_retriever.add_documents(split_docs)
-
-        #  The sparse keyword retriever is good at finding relevant documents based on keywords,
-        #  while the dense retriever is good at finding relevant documents based on semantic similarity.
-        if self.keyword_retriever == "bm25":
-            keyword_retriever = BM25Retriever.from_documents(split_docs, preprocess_func=self.preprocess_text)
-            keyword_retriever.k = self.num_results
-        elif self.keyword_retriever == "splade":
-            client = QdrantClient(location=":memory:")
-            collection_name = "sparse_collection"
-            vector_name = "sparse_vector"
-
-            client.create_collection(
-                collection_name,
-                vectors_config={},
-                sparse_vectors_config={
-                    vector_name: models.SparseVectorParams(
-                        index=models.SparseIndexParams(
-                            on_disk=False,
-                        )
-                    )
-                },
-            )
-
-            keyword_retriever = MyQdrantSparseVectorRetriever(
-                splade_doc_tokenizer=self.splade_doc_tokenizer,
-                splade_doc_model=self.splade_doc_model,
-                splade_query_tokenizer=self.splade_query_tokenizer,
-                splade_query_model=self.splade_query_model,
-                device=self.device,
-                client=client,
-                collection_name=collection_name,
-                sparse_vector_name=vector_name,
-                batch_size=self.splade_batch_size,
-                k=self.num_results
-            )
-            keyword_retriever.add_documents(split_docs)
+            faiss_retriever.add_documents(split_docs)
+            dense_result_docs = faiss_retriever.get_relevant_documents(query)
         else:
-            raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
+            dense_result_docs = []
 
-        dense_result_docs = faiss_retriever.get_relevant_documents(query)
-        sparse_results_docs = keyword_retriever.get_relevant_documents(query)
+        if self.ensemble_weighting < 1:
+            #  The sparse keyword retriever is good at finding relevant documents based on keywords,
+            #  while the dense retriever is good at finding relevant documents based on semantic similarity.
+            if self.keyword_retriever == "bm25":
+                keyword_retriever = BM25Retriever.from_documents(split_docs,
+                                                                 preprocess_func=self.preprocess_text)
+                keyword_retriever.k = self.num_results
+            elif self.keyword_retriever == "splade":
+                client = QdrantClient(location=":memory:")
+                collection_name = "sparse_collection"
+                vector_name = "sparse_vector"
+
+                client.create_collection(
+                    collection_name,
+                    vectors_config={},
+                    sparse_vectors_config={
+                        vector_name: models.SparseVectorParams(
+                            index=models.SparseIndexParams(
+                                on_disk=False,
+                            )
+                        )
+                    },
+                )
+
+                keyword_retriever = MyQdrantSparseVectorRetriever(
+                    splade_doc_tokenizer=self.splade_doc_tokenizer,
+                    splade_doc_model=self.splade_doc_model,
+                    splade_query_tokenizer=self.splade_query_tokenizer,
+                    splade_query_model=self.splade_query_model,
+                    device=self.device,
+                    client=client,
+                    collection_name=collection_name,
+                    sparse_vector_name=vector_name,
+                    batch_size=self.splade_batch_size,
+                    k=self.num_results
+                )
+                keyword_retriever.add_documents(split_docs)
+            else:
+                raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
+            sparse_results_docs = keyword_retriever.get_relevant_documents(query)
+        else:
+            sparse_results_docs = []
+
         return weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
                                         weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
