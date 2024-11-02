@@ -82,7 +82,7 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
 
 
 def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int,
-                          simple_search: bool = False):
+                          instant_answers: bool, simple_search: bool = False):
     yield f'Getting results from Searxng...'
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -107,6 +107,12 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
                                        metadata={"source": result["url"]})
             result_documents.append(result_document)
             result_urls.append(result["url"])
+        answers = response_dict["answers"]
+        if instant_answers:
+            for answer in answers:
+                answer_document = Document(page_content=f"Title: {query}\n{answer}",
+                                           metadata={"source": "SearXNG instant answer"})
+                result_documents.append(answer_document)
         pageno += 1
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))

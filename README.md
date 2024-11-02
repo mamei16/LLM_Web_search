@@ -106,9 +106,8 @@ This is the default web search backend.
 
 ### SearXNG
 
-Rudimentary support exists for SearXNG. To use a local or remote 
-SearXNG instance instead of DuckDuckGo, simply paste the URL into the 
-"SearXNG URL" text field of the "LLM Web Search" settings tab. The instance must support
+To use a local or remote SearXNG instance instead of DuckDuckGo, simply paste the URL into the 
+"SearXNG URL" text field of the "LLM Web Search" settings tab (be sure to include `http://` or `https://`). The instance must support
 returning results in JSON format.
 
 #### Search parameters

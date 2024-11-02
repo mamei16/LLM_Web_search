@@ -465,6 +465,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                                    searxng_url,
                                                                    document_retriever,
                                                                    max_search_results,
+                                                                   instant_answers,
                                                                    simple_search))
             try:
                 for status_message in search_generator:
