@@ -189,9 +189,9 @@ def ui():
 
     def toggle_full_search_options(simple_search: bool):
         if simple_search:
-            return [gr.update(visible=False)] * 7
+            return [gr.update(visible=False)] * 6
         else:
-            return [gr.update(visible=True)] * 7
+            return [gr.update(visible=True)] * 6
 
 
     def update_regex_setting(input_str: str, setting_key: str, error_html_element: gr.component):
@@ -309,9 +309,10 @@ def ui():
         num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
                                                maximum=100, value=lambda: params["duckduckgo results per query"],
                                                precision=0)
-        langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
-                                                   value=lambda: params["langchain similarity score threshold"],
-                                                   visible=not params["simple search"])
+        similarity_score_threshold = gr.Number(label="Similarity Score Threshold", minimum=0., maximum=1.,
+                                               value=lambda: params["langchain similarity score threshold"],
+                                               info="Discard chunks that are not similar "
+                                                    "enough to the search query and hence fall below the threshold.")
         chunk_size = gr.Number(label="Max. chunk size", info="The maximal size of the individual chunks that each webpage will"
                                      " be split into, in characters", minimum=2, maximum=10000,
                                value=lambda: params["chunk size"], precision=0,
@@ -334,15 +335,14 @@ def ui():
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
                                       num_process_search_results, None)
-    langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
-                                          langchain_similarity_threshold, None)
+    similarity_score_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
+                                      similarity_score_threshold, None)
     chunk_size.change(lambda x: params.update({"chunk size": x}), chunk_size, None)
     search_type.change(lambda x: params.update({"simple search": x}),
                        search_type,
                        None).then(toggle_full_search_options, search_type, [ensemble_weighting, keyword_retriever,
                                                                             splade_batch_size, chunker, chunk_size,
-                                                                            chunker_breakpoint_threshold_amount,
-                                                                            langchain_similarity_threshold])
+                                                                            chunker_breakpoint_threshold_amount])
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
                                                                search_command_regex_error_label),
