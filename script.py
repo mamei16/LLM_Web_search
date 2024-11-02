@@ -99,8 +99,8 @@ def toggle_extension(_enable: bool):
         embedding_model.to(embedding_model._target_device)
         custom_system_message_filename = params.get("default system prompt filename")
     else:
-        if not params["cpu only"] and 'document_retriever' in globals():  # free some VRAM
-            model_attrs = ["embeddings", "splade_doc_model", "splade_query_model"]
+        if not params["cpu only"]:  # free some VRAM
+            model_attrs = ["embedding_model", "splade_doc_model", "splade_query_model"]
             for model_attr in model_attrs:
                 if hasattr(document_retriever, model_attr):
                     model = getattr(document_retriever, model_attr)
