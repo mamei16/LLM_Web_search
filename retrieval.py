@@ -82,7 +82,14 @@ class DocumentRetriever:
         text = text.strip()
         return text
 
-    def retrieve_documents(self, query: str, url_list: list[str]) -> list[Document]:
+    def retrieve_from_snippets(self, query: str, documents: list[Document]) -> list[Document]:
+        yield "Retrieving relevant results..."
+        faiss_retriever = FaissRetriever(self.embedding_model, num_results=self.num_results,
+                                         similarity_threshold=self.similarity_threshold)
+        faiss_retriever.add_documents(documents)
+        return faiss_retriever.get_relevant_documents(query)
+
+    def retrieve_from_webpages(self, query: str, url_list: list[str]) -> list[Document]:
         yield "Downloading webpages..."
         html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
         html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]

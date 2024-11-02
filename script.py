@@ -46,7 +46,8 @@ params = {
     "keyword retriever": "bm25",
     "splade batch size": 2,
     "chunking method": "character-based",
-    "chunker breakpoint_threshold_amount": 30
+    "chunker breakpoint_threshold_amount": 30,
+    "simple search": False
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -185,16 +186,13 @@ def ui():
     # Inject custom system message into the main textbox if a default one is set
     shared.gradio['custom_system_message'].value = load_system_prompt(custom_system_message_filename)
 
-    def update_result_type_setting(choice: str):
-        if choice == "Instant answers":
-            params.update({"instant answers": True})
-            params.update({"regular search results": False})
-        elif choice == "Regular results":
-            params.update({"instant answers": False})
-            params.update({"regular search results": True})
-        elif choice == "Regular results and instant answers":
-            params.update({"instant answers": True})
-            params.update({"regular search results": True})
+
+    def toggle_full_search_options(simple_search: bool):
+        if simple_search:
+            return [gr.update(visible=False)] * 7
+        else:
+            return [gr.update(visible=True)] * 7
+
 
     def update_regex_setting(input_str: str, setting_key: str, error_html_element: gr.component):
         if input_str == "":
@@ -226,12 +224,9 @@ def ui():
             saved_success_elem = gr.HTML("", visible=False)
 
     with gr.Row():
-        result_radio = gr.Radio(
-            ["Regular results", "Regular results and instant answers"],
-            label="What kind of search results should be returned?",
-            value=lambda: "Regular results and instant answers" if
-                          (params["regular search results"] and params["instant answers"]) else "Regular results"
-        )
+        with gr.Column():
+            search_type = gr.Radio([("Simple search", True), ("Full search", False)], label="Search type",
+                               value=lambda: params["simple search"])
         with gr.Column():
             search_command_regex = gr.Textbox(label="Search command regex string",
                                               placeholder=params["default search command regex"],
@@ -282,27 +277,32 @@ def ui():
     with gr.Accordion("Advanced settings", open=False):
         ensemble_weighting = gr.Slider(minimum=0, maximum=1, step=0.05, value=lambda: params["ensemble weighting"],
                                        label="Ensemble Weighting", info="Smaller values = More keyword oriented, "
-                                                                        "Larger values = More focus on semantic similarity")
+                                                                        "Larger values = More focus on semantic similarity",
+                                       visible=not params["simple search"])
         with gr.Row():
             keyword_retriever = gr.Radio([("Okapi BM25", "bm25"),("SPLADE", "splade")], label="Sparse keyword retriever",
                                          info="For change to take effect, toggle the extension off and on again",
-                                         value=lambda: params["keyword retriever"])
+                                         value=lambda: params["keyword retriever"],
+                                         visible=not params["simple search"])
             splade_batch_size = gr.Slider(minimum=2, maximum=256, step=2, value=lambda: params["splade batch size"],
                                           label="SPLADE batch size",
                                           info="Smaller values = Slower retrieval (but lower VRAM usage), "
                                                "Larger values = Faster retrieval (but higher VRAM usage). "
                                                "A good trade-off seems to be setting it = 8",
-                                          precision=0)
+                                          precision=0,
+                                          visible=not params["simple search"])
         with gr.Row():
             chunker = gr.Radio([("Character-based", "character-based"),
                                 ("Semantic", "semantic")], label="Chunking method",
-                               value=lambda: params["chunking method"])
+                               value=lambda: params["chunking method"],
+                               visible=not params["simple search"])
             chunker_breakpoint_threshold_amount = gr.Slider(minimum=1, maximum=100, step=1,
                                                             value=lambda: params["chunker breakpoint_threshold_amount"],
                                                             label="Semantic chunking: sentence split threshold (%)",
                                                             info="Defines how different two consecutive sentences have"
                                                                  " to be for them to be split into separate chunks",
-                                                            precision=0)
+                                                            precision=0,
+                                                            visible=not params["simple search"])
         gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=lambda: params["search results per query"], precision=0)
@@ -310,10 +310,12 @@ def ui():
                                                maximum=100, value=lambda: params["duckduckgo results per query"],
                                                precision=0)
         langchain_similarity_threshold = gr.Number(label="Langchain Similarity Score Threshold", minimum=0., maximum=1.,
-                                                   value=lambda: params["langchain similarity score threshold"])
+                                                   value=lambda: params["langchain similarity score threshold"],
+                                                   visible=not params["simple search"])
         chunk_size = gr.Number(label="Max. chunk size", info="The maximal size of the individual chunks that each webpage will"
                                      " be split into, in characters", minimum=2, maximum=10000,
-                               value=lambda: params["chunk size"], precision=0)
+                               value=lambda: params["chunk size"], precision=0,
+                               visible=not params["simple search"])
 
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
@@ -335,7 +337,12 @@ def ui():
     langchain_similarity_threshold.change(lambda x: params.update({"langchain similarity score threshold": x}),
                                           langchain_similarity_threshold, None)
     chunk_size.change(lambda x: params.update({"chunk size": x}), chunk_size, None)
-    result_radio.change(update_result_type_setting, result_radio, None)
+    search_type.change(lambda x: params.update({"simple search": x}),
+                       search_type,
+                       None).then(toggle_full_search_options, search_type, [ensemble_weighting, keyword_retriever,
+                                                                            splade_batch_size, chunker, chunk_size,
+                                                                            chunker_breakpoint_threshold_amount,
+                                                                            langchain_similarity_threshold])
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
                                                                search_command_regex_error_label),
@@ -405,7 +412,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     read_webpage = False
     max_search_results = int(params["search results per query"])
     instant_answers = params["instant answers"]
-    # regular_search_results = params["regular search results"]
+    simple_search = params["simple search"]
 
     document_retriever.num_results = int(params["duckduckgo results per query"])
     document_retriever.similarity_threshold = params["langchain similarity score threshold"]
@@ -451,12 +458,14 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 search_generator = Generator(retrieve_from_duckduckgo(search_term,
                                                                       document_retriever,
                                                                       max_search_results,
-                                                                      instant_answers))
+                                                                      instant_answers,
+                                                                      simple_search))
             else:
                 search_generator = Generator(retrieve_from_searxng(search_term,
                                                                    searxng_url,
                                                                    document_retriever,
-                                                                   max_search_results))
+                                                                   max_search_results,
+                                                                   simple_search))
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"

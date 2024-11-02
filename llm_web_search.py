@@ -5,7 +5,6 @@ from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
-
 try:
     from .retrieval import DocumentRetriever
     from .utils import Document, Generator
@@ -45,7 +44,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 
 def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, max_results: int,
-                                instant_answers: bool):
+                                instant_answers: bool, simple_search: bool = False):
     documents = []
     query = query.strip("\"'")
     yield f'Getting results from DuckDuckGo...'
@@ -68,7 +67,10 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
                                        metadata={"source": result["href"]})
             result_documents.append(result_document)
             result_urls.append(result["href"])
-    retrieval_gen = Generator(document_retriever.retrieve_documents(query, result_urls))
+    if simple_search:
+        retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
+    else:
+        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
     documents.extend(retrieval_gen.retval)
@@ -79,11 +81,13 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
     return documents[:max_results]
 
 
-def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int):
+def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int,
+                          simple_search: bool = False):
     yield f'Getting results from Searxng...'
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
+    result_documents = []
     result_urls = []
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
     pageno = 1
@@ -99,9 +103,15 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
         if not result_dicts:
             break
         for result in result_dicts:
+            result_document = Document(page_content=f"Title: {result['title']}\n{result['content']}",
+                                       metadata={"source": result["url"]})
+            result_documents.append(result_document)
             result_urls.append(result["url"])
         pageno += 1
-    retrieval_gen = Generator(document_retriever.retrieve_documents(query, result_urls))
+    if simple_search:
+        retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
+    else:
+        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
     for status_message in retrieval_gen:
         yield status_message
     documents = retrieval_gen.retval

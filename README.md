@@ -21,6 +21,9 @@ and the results are appended to the model's output.
     + [DuckDuckGo](#duckduckgo)
     + [SearXNG](#searxng)
       + [Search parameters](#search-parameters)
+  * [Search types](#search-types)
+	  + [Simple search](#simple-search)
+	  + [Full search](#full-search)
   * [Keyword retrievers](#keyword-retrievers)
     + [Okapi BM25](#okapi-bm25)
     + [SPLADE](#splade)
@@ -116,6 +119,14 @@ specific query, it must follow the
 automatic redirect and Special Queries are not supported.
 
 
+## Search types
+### Simple search
+Quickly finds answers using just the highlighted snippets from websites returned by the search engine. If you simply want results *fast*, choose this search type.  
+Note: Some advanced options in the UI will be hidden when simple search is enabled, as they have no effect in this case.  
+Note2: The snippets returned by SearXNG are often much more useful than those returned by DuckDuckGo, so consider using SearXNG as the search backend if you use simple search.
+### Full search
+Scans entire websites in the results for a more comprehensive search. Ideally, this search type should be able to find "needle in the haystack" information hidden somewhere in the website text. Hence, choose this option if you want to trade a more resource intensive search process for generally more relevant search results.   
+For the best possible search results, also enable semantic chunking and use SPLADE as the keyword retriever.
 ## Keyword retrievers
 ### Okapi BM25
 This extension comes out of the box with 
