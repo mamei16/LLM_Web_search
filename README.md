@@ -68,14 +68,13 @@ to use a fixed search command (see `system_prompts/` for example prompts).
 
 An example workflow of using this extension could be:
 1. Load a model
-2. Load a matching instruction template
-3. Head over to the "LLM Web search" tab
-4. Load a custom system message/prompt
-5. Ensure that the query part of the command mentioned in the system message 
+2. Head over to the "LLM Web search" tab
+3. Load a custom system message/prompt
+4. Ensure that the query part of the command mentioned in the system message 
 can be matched using the current "Search command regex string" 
 (see "Using a custom regular expression" below)
-6. Pick a generation parameter preset that works well for you. You can read more about generation parameters [here](https://github.com/oobabooga/text-generation-webui/wiki/03-%E2%80%90-Parameters-Tab#generation)
-7. Choose "chat-instruct" or "instruct" mode and start chatting
+5. Pick a generation parameter preset that works well for you. You can read more about generation parameters [here](https://github.com/oobabooga/text-generation-webui/wiki/03-%E2%80%90-Parameters-Tab#generation)
+6. Choose "chat-instruct" or "instruct" mode and start chatting
 
 ### Using a custom regular expression
 The default regular expression is:  
