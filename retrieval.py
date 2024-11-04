@@ -25,14 +25,14 @@ try:
     from .retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
-    from .utils import Document, cosine_similarity
+    from .utils import Document
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
     from retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
-    from utils import Document, cosine_similarity
+    from utils import Document
 
 
 class DocumentRetriever:

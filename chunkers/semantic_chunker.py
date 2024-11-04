@@ -7,11 +7,11 @@ from sentence_transformers import SentenceTransformer
 try:
     from ..chunkers.character_chunker import RecursiveCharacterTextSplitter
     from ..chunkers.base_chunker import TextSplitter
-    from ..utils import Document, cosine_similarity
+    from ..utils import Document
 except:
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
     from chunkers.base_chunker import TextSplitter
-    from utils import Document, cosine_similarity
+    from utils import Document
 
 
 def calculate_cosine_distances(sentence_embeddings) -> np.array:
@@ -23,7 +23,15 @@ def calculate_cosine_distances(sentence_embeddings) -> np.array:
     Returns:
         Distance between each pair of adjacent sentences
     """
-    return (1 - cosine_similarity(sentence_embeddings, sentence_embeddings)).flatten()[1::len(sentence_embeddings) + 1]
+    # Sliding window array over each pair of adjacent sentence embeddings
+    sliding_windows = np.lib.stride_tricks.sliding_window_view(sentence_embeddings, 2, axis=0)
+
+    dot_prod = np.prod(sliding_windows, axis=-1).sum(axis=1)
+
+    magnitude_prod = np.prod(np.linalg.norm(sliding_windows, axis=1), axis=1)
+
+    cos_sim = dot_prod / magnitude_prod
+    return 1 - cos_sim
 
 
 BreakpointThresholdType = Literal["percentile", "standard_deviation", "interquartile"]
