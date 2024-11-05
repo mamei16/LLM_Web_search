@@ -40,7 +40,7 @@ class DocumentRetriever:
     def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
                  ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
                  model_cache_dir: str = None, chunking_method: str = "character-based",
-                 chunker_breakpoint_threshold_amount: int = 10):
+                 chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10):
         self.device = device
         self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
                                                    device=device,
@@ -75,6 +75,7 @@ class DocumentRetriever:
         self.chunker_breakpoint_threshold_amount = chunker_breakpoint_threshold_amount
         self.ensemble_weighting = ensemble_weighting
         self.keyword_retriever = keyword_retriever
+        self.client_timeout = client_timeout
 
     def preprocess_text(self, text: str) -> str:
         text = text.replace("\n", " \n")
@@ -98,7 +99,7 @@ class DocumentRetriever:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Downloading and chunking webpages..."
-        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter))
+        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
 
         yield "Retrieving relevant results..."
         if self.ensemble_weighting > 0:
@@ -156,8 +157,8 @@ class DocumentRetriever:
                                         weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
 
-async def async_download_html(url, headers):
-    async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(10),
+async def async_download_html(url: str, headers: Dict, timeout: int):
+    async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(timeout),
                                      max_field_size=65536) as session:
         try:
             resp = await session.get(url)
@@ -172,11 +173,13 @@ async def async_download_html(url, headers):
     return None
 
 
-async def async_fetch_chunk_websites(urls: List[str], text_splitter: BoundedSemanticChunker or RecursiveCharacterTextSplitter):
+async def async_fetch_chunk_websites(urls: List[str],
+                                     text_splitter: BoundedSemanticChunker or RecursiveCharacterTextSplitter,
+                                     timeout: int = 10):
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
-    result_futures = [async_download_html(url, headers) for url in urls]
+    result_futures = [async_download_html(url, headers, timeout) for url in urls]
     chunks = []
     for f in asyncio.as_completed(result_futures):
         result = await f

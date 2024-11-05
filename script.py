@@ -47,7 +47,8 @@ params = {
     "splade batch size": 2,
     "chunking method": "character-based",
     "chunker breakpoint_threshold_amount": 30,
-    "simple search": False
+    "simple search": False,
+    "client timeout": 10
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -189,9 +190,9 @@ def ui():
 
     def toggle_full_search_options(simple_search: bool):
         if simple_search:
-            return [gr.update(visible=False)] * 6
+            return [gr.update(visible=False)] * 7
         else:
-            return [gr.update(visible=True)] * 6
+            return [gr.update(visible=True)] * 7
 
 
     def update_regex_setting(input_str: str, setting_key: str, error_html_element: gr.component):
@@ -303,6 +304,10 @@ def ui():
                                                                  " to be for them to be split into separate chunks",
                                                             precision=0,
                                                             visible=not params["simple search"])
+        client_timeout = gr.Number(label="Client timeout (in seconds)", info="When reached, pending or unfinished webpage "
+                                         "downloads will be cancelled to start the retrieval process immediately",
+                                   minimum=1, maximum=100,
+                                   value=lambda: params["client timeout"], precision=0)
         gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
         num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
                                        value=lambda: params["search results per query"], precision=0)
@@ -332,6 +337,7 @@ def ui():
     chunker.change(lambda x: params.update({"chunking method": x}), chunker, None)
     chunker_breakpoint_threshold_amount.change(lambda x: params.update({"chunker breakpoint_threshold_amount": x}),
                                                chunker_breakpoint_threshold_amount, None)
+    client_timeout.change(lambda x: params.update({"client timeout": x}), client_timeout, None)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
                                       num_process_search_results, None)
@@ -342,7 +348,8 @@ def ui():
                        search_type,
                        None).then(toggle_full_search_options, search_type, [ensemble_weighting, keyword_retriever,
                                                                             splade_batch_size, chunker, chunk_size,
-                                                                            chunker_breakpoint_threshold_amount])
+                                                                            chunker_breakpoint_threshold_amount,
+                                                                            client_timeout])
 
     search_command_regex.change(lambda x: update_regex_setting(x, "search command regex",
                                                                search_command_regex_error_label),
@@ -421,6 +428,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     document_retriever.splade_batch_size = params["splade batch size"]
     document_retriever.chunking_method = params["chunking method"]
     document_retriever.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
+    document_retriever.client_timeout = params["client timeout"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
