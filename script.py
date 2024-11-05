@@ -447,14 +447,16 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
 
+    model_reply_gen = generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat)
     reply = None
-    for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+    for reply in model_reply_gen:
 
         if force_search and not recursive_call:
             reply = params["force search prefix"] + reply
 
         search_re_match = compiled_search_command_regex.search(reply)
         if search_re_match is not None:
+            model_reply_gen.close()
             yield reply
             original_model_reply = reply
             web_search = True
@@ -496,6 +498,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
 
         open_url_re_match = compiled_open_url_command_regex.search(reply)
         if open_url_re_match is not None:
+            model_reply_gen.close()
             yield reply
             original_model_reply = reply
             read_webpage = True
