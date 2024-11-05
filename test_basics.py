@@ -16,9 +16,8 @@ class MyTestCase(unittest.TestCase):
                                                  self.document_retriever, instant_answers=True, max_results=5))
         status_messages = list(gen)
         self.assertEqual(status_messages[0], "Getting results from DuckDuckGo...")
-        self.assertEqual(status_messages[1], "Downloading webpages...")
-        self.assertEqual(status_messages[2], "Chunking page texts...")
-        self.assertEqual(status_messages[3], "Retrieving relevant results...")
+        self.assertEqual(status_messages[1], "Downloading and chunking webpages...")
+        self.assertEqual(status_messages[2], "Retrieving relevant results...")
 
         search_result_dict = gen.retval
         self.assertEqual(len(search_result_dict), 5)
