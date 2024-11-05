@@ -103,9 +103,10 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
         if not result_dicts:
             break
         for result in result_dicts:
-            result_document = Document(page_content=f"Title: {result['title']}\n{result['content']}",
-                                       metadata={"source": result["url"]})
-            result_documents.append(result_document)
+            if result.get("content"):   # Since some websites don't provide any description
+                result_document = Document(page_content=f"Title: {result['title']}\n{result['content']}",
+                                           metadata={"source": result["url"]})
+                result_documents.append(result_document)
             result_urls.append(result["url"])
         answers = response_dict["answers"]
         if instant_answers:
