@@ -67,13 +67,16 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
                                        metadata={"source": result["href"]})
             result_documents.append(result_document)
             result_urls.append(result["href"])
+
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
     else:
         retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
+
     for status_message in retrieval_gen:
         yield status_message
     documents.extend(retrieval_gen.retval)
+
     if not documents:    # Fall back to old simple search rather than returning nothing
         print("LLM_Web_search | Could not find any page content "
               "similar enough to be extracted, using basic search fallback...")
@@ -93,21 +96,24 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
     pageno = 1
     while len(result_urls) < document_retriever.num_results:
         response = requests.get(url + request_str + str(pageno), headers=headers)
+
         if not result_urls:     # no results to lose by raising an exception here
             response.raise_for_status()
         try:
             response_dict = response.json()
         except JSONDecodeError:
             raise ValueError("JSONDecodeError: Please ensure that the SearXNG instance can return data in JSON format")
+
         result_dicts = response_dict["results"]
         if not result_dicts:
             break
         for result in result_dicts:
-            if result.get("content"):   # Since some websites don't provide any description
+            if "content" in result:   # Since some websites don't provide any description
                 result_document = Document(page_content=f"Title: {result['title']}\n{result['content']}",
                                            metadata={"source": result["url"]})
                 result_documents.append(result_document)
             result_urls.append(result["url"])
+
         answers = response_dict["answers"]
         if instant_answers:
             for answer in answers:
@@ -115,10 +121,12 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
                                            metadata={"source": "SearXNG instant answer"})
                 result_documents.append(answer_document)
         pageno += 1
+
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
     else:
         retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
+
     for status_message in retrieval_gen:
         yield status_message
     documents = retrieval_gen.retval
