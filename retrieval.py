@@ -178,7 +178,8 @@ async def async_fetch_chunk_websites(urls: List[str],
                                      timeout: int = 10):
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-               "Accept-Language": "en-US,en;q=0.5"}
+               "Accept-Language": "en-US,en;q=0.5",
+               "Accept-Encoding": "br;q=1.0, gzip;q=0.8, *;q=0.1"}
     result_futures = [async_download_html(url, headers, timeout) for url in urls]
     chunks = []
     for f in asyncio.as_completed(result_futures):
