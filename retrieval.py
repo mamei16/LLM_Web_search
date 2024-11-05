@@ -90,13 +90,6 @@ class DocumentRetriever:
         return faiss_retriever.get_relevant_documents(query)
 
     def retrieve_from_webpages(self, query: str, url_list: list[str]) -> list[Document]:
-        yield "Downloading webpages..."
-        html_url_tupls = zip(asyncio.run(async_fetch_urls(url_list)), url_list)
-        html_url_tupls = [(content, url) for content, url in html_url_tupls if content is not None]
-        if not html_url_tupls:
-            return []
-
-        documents = [html_to_plaintext_doc(html, url) for html, url in html_url_tupls]
         if self.chunking_method == "semantic":
             text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
                                                    breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
@@ -104,8 +97,8 @@ class DocumentRetriever:
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
-        yield "Chunking page texts..."
-        split_docs = text_splitter.split_documents(documents)
+        yield "Downloading and chunking webpages..."
+        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter))
 
         yield "Retrieving relevant results..."
         if self.ensemble_weighting > 0:
@@ -168,7 +161,7 @@ async def async_download_html(url, headers):
                                      max_field_size=65536) as session:
         try:
             resp = await session.get(url)
-            return await resp.text()
+            return await resp.text(), url
         except UnicodeDecodeError:
             print(
                 f"LLM_Web_search | {url} generated an exception: Expected content type text/html. Got {resp.headers['Content-Type']}.")
@@ -179,12 +172,19 @@ async def async_download_html(url, headers):
     return None
 
 
-async def async_fetch_urls(urls):
+async def async_fetch_chunk_websites(urls: List[str], text_splitter: BoundedSemanticChunker or RecursiveCharacterTextSplitter):
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
-    webpages = await asyncio.gather(*[(async_download_html(url, headers)) for url in urls])
-    return webpages
+    result_futures = [async_download_html(url, headers) for url in urls]
+    chunks = []
+    for f in asyncio.as_completed(result_futures):
+        result = await f
+        if result:
+            resp_html, url = result
+            document = html_to_plaintext_doc(resp_html, url)
+            chunks.extend(text_splitter.split_documents([document]))
+    return chunks
 
 
 def docs_to_pretty_str(docs) -> str:
