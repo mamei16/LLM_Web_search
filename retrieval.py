@@ -13,8 +13,6 @@ from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
 from sentence_transformers import SentenceTransformer
-import cProfile
-import pickle
 
 try:
     from .retrievers.faiss_retriever import FaissRetriever
@@ -95,10 +93,6 @@ class DocumentRetriever:
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Downloading and chunking webpages..."
         split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
-        with open("white_island_docs", "wb") as f:
-            #split_docs = pickle.load(f)
-            pickle.dump(split_docs, f)
-
 
         yield "Retrieving relevant results..."
         if self.ensemble_weighting > 0:
@@ -129,11 +123,7 @@ class DocumentRetriever:
                 keyword_retriever.add_documents(split_docs)
             else:
                 raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
-            pr = cProfile.Profile()
-            pr.enable()
             sparse_results_docs = keyword_retriever.get_relevant_documents(query)
-            pr.disable()
-            pr.print_stats(sort="cumulative")
         else:
             sparse_results_docs = []
 
