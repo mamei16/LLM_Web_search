@@ -8,12 +8,12 @@ from typing import (
 
 import torch
 import numpy as np
+from scipy.sparse import csr_array
 
 try:
     from ..utils import Document
 except:
     from utils import Document
-    from scipy.sparse import csr_array
 
 
 class SimilarLengthsBatchifyer:
