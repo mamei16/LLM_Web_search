@@ -108,7 +108,7 @@ class SparseVectorRetriever:
         self.vocab_size = splade_doc_model.config.vocab_size
         self.texts: List[str] = []
         self.metadatas: List[Dict] = []
-        self.doc_vecs: List[csr_array] = []
+        self.sparse_doc_vecs: List[csr_array] = []
 
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
@@ -184,7 +184,8 @@ class SparseVectorRetriever:
         self.metadatas = metadatas
 
         indices, values = self.compute_document_vectors(texts, self.batch_size)
-        self.doc_vecs = [csr_array((val, (ind,)), shape=(self.vocab_size,)) for val, ind in zip(values, indices)]
+        self.sparse_doc_vecs = [csr_array((val, (ind,)),
+                                          shape=(self.vocab_size,)) for val, ind in zip(values, indices)]
 
         if self.device == "cuda":
             torch.cuda.empty_cache()
@@ -193,7 +194,7 @@ class SparseVectorRetriever:
         query_indices, query_values = self.compute_query_vector(query)
 
         sparse_query_vec = csr_array((query_values, (query_indices,)),shape=(self.vocab_size,))
-        dists = [dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.doc_vecs]
+        dists = [dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.sparse_doc_vecs]
         sorted_indices = np.argsort(dists)
 
         return [Document(self.texts[i], self.metadatas[i]) for i in sorted_indices[:self.k]]
