@@ -90,7 +90,7 @@ class SimilarLengthsBatchifyer:
 def dot_dist(x, y):
     #return -np.dot(x, y).sum()
     dist = np.dot(x, y).data
-    if dist.size == 0:
+    if dist.size == 0:  # no overlapping non-zero entries between x and y
         return np.inf
     return -dist.sum()
 
