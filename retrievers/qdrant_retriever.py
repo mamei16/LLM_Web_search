@@ -20,6 +20,8 @@ try:
     from ..utils import Document
 except:
     from utils import Document
+    from sklearn.neighbors import NearestNeighbors
+    from scipy.sparse import csr_array, vstack
 
 class SimilarLengthsBatchifyer:
     """
@@ -118,6 +120,15 @@ class MyQdrantSparseVectorRetriever:
         self.filter = filter
         self.search_options = search_options
 
+        def cool_dist(x, y):
+            #return -np.dot(x, y).sum()
+            dist = np.dot(x, y).data
+            if dist.size == 0:
+                return np.inf
+            return -dist.sum()
+
+        self.nearest_neighbors = NearestNeighbors(n_neighbors=k, algorithm="auto", metric=cool_dist, n_jobs=-1)
+
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
@@ -185,32 +196,36 @@ class MyQdrantSparseVectorRetriever:
         metadatas: Optional[List[dict]] = None,
         **kwargs: Any,
     ):
-        client = cast(QdrantClient, self.client)
+        #client = cast(QdrantClient, self.client)
 
         # Remove duplicate and empty texts
         text_to_metadata = {texts[i]: metadatas[i] for i in range(len(texts)) if len(texts[i]) > 0}
         texts = list(text_to_metadata.keys())
         metadatas = list(text_to_metadata.values())
+        self.texts = texts
+        self.metadatas = metadatas
 
         indices, values = self.compute_document_vectors(texts, self.batch_size)
 
-        points = [
-            models.PointStruct(
-                id=i + 1,
-                vector={
-                    self.sparse_vector_name: models.SparseVector(
-                        indices=indices[i],
-                        values=values[i],
-                    )
-                },
-                payload={
-                    self.content_payload_key: texts[i],
-                    self.metadata_payload_key: metadatas[i] if metadatas else None,
-                },
-            )
-            for i in range(len(texts))
-        ]
-        client.upsert(self.collection_name, points=points, **kwargs)
+        self.nearest_neighbors.fit(vstack([csr_array((val, (ind,)), shape=(30522,)) for val, ind in zip(values, indices)]).astype(np.float32))
+
+        #points = [
+        #    models.PointStruct(
+        #        id=i + 1,
+        #        vector={
+        #            self.sparse_vector_name: models.SparseVector(
+        #                indices=indices[i],
+        #                values=values[i],
+        #            )
+        #        },
+        #        payload={
+        #            self.content_payload_key: texts[i],
+        #            self.metadata_payload_key: metadatas[i] if metadatas else None,
+        #        },
+        #    )
+        #    for i in range(len(texts))
+        #]
+        #client.upsert(self.collection_name, points=points, **kwargs)
         if self.device == "cuda":
             torch.cuda.empty_cache()
 
@@ -231,8 +246,13 @@ class MyQdrantSparseVectorRetriever:
         )
 
     def get_relevant_documents(self, query: str) -> List[Document]:
-        client = cast(QdrantClient, self.client)
+        #client = cast(QdrantClient, self.client)
         query_indices, query_values = self.compute_query_vector(query)
+
+        _, neighbor_indices = self.nearest_neighbors.kneighbors(csr_array((query_values, (query_indices,)),
+                                                                          shape=(30522,)).reshape(1, -1).astype(np.float32))
+
+        return [Document(self.texts[i], self.metadatas[i]) for i in neighbor_indices[0]]
 
         results = client.search(
             self.collection_name,

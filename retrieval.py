@@ -13,7 +13,8 @@ from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
 from sentence_transformers import SentenceTransformer
-
+import cProfile
+import pickle
 try:
     from qdrant_client import QdrantClient, models
 except ImportError:
@@ -99,7 +100,10 @@ class DocumentRetriever:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Downloading and chunking webpages..."
-        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
+        #split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
+        with open("white_island_docs", "rb") as f:
+            split_docs = pickle.load(f)
+
 
         yield "Retrieving relevant results..."
         if self.ensemble_weighting > 0:
@@ -118,21 +122,21 @@ class DocumentRetriever:
                                                                  preprocess_func=self.preprocess_text)
                 keyword_retriever.k = self.num_results
             elif self.keyword_retriever == "splade":
-                client = QdrantClient(location=":memory:")
+                client = None#QdrantClient(location=":memory:")
                 collection_name = "sparse_collection"
                 vector_name = "sparse_vector"
 
-                client.create_collection(
-                    collection_name,
-                    vectors_config={},
-                    sparse_vectors_config={
-                        vector_name: models.SparseVectorParams(
-                            index=models.SparseIndexParams(
-                                on_disk=False,
-                            )
-                        )
-                    },
-                )
+                #client.create_collection(
+                #    collection_name,
+                #    vectors_config={},
+                #    sparse_vectors_config={
+                #        vector_name: models.SparseVectorParams(
+                #            index=models.SparseIndexParams(
+                #                on_disk=False,
+                #            )
+                #        )
+                #    },
+                #)
 
                 keyword_retriever = MyQdrantSparseVectorRetriever(
                     splade_doc_tokenizer=self.splade_doc_tokenizer,
@@ -149,7 +153,11 @@ class DocumentRetriever:
                 keyword_retriever.add_documents(split_docs)
             else:
                 raise ValueError("self.keyword_retriever must be one of ('bm25', 'splade')")
+            pr = cProfile.Profile()
+            pr.enable()
             sparse_results_docs = keyword_retriever.get_relevant_documents(query)
+            pr.disable()
+            pr.print_stats(sort="cumulative")
         else:
             sparse_results_docs = []
 
