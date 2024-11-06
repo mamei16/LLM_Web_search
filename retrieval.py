@@ -44,12 +44,14 @@ class DocumentRetriever:
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
-                                                                         cache_dir=model_cache_dir, torch_dtype=torch.float16,
+                                                                         cache_dir=model_cache_dir,
+                                                                         torch_dtype=torch.float32 if device == "cpu" else torch.float16,
                                                                          attn_implementation="eager").to(self.device)
             self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
-                                                                           cache_dir=model_cache_dir, torch_dtype=torch.float16,
+                                                                           cache_dir=model_cache_dir,
+                                                                           torch_dtype=torch.float32 if device == "cpu" else torch.float16,
                                                                            attn_implementation="eager").to(self.device)
             optimum_logger = optimum.bettertransformer.transformation.logger
             original_log_level = optimum_logger.level
