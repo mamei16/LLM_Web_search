@@ -96,10 +96,6 @@ def dot_dist(x, y):
 
 
 class SparseVectorRetriever:
-    """
-    Based on:
-    https://github.com/langchain-ai/langchain/blob/447c0dd2f051157a3ccdac49a8d5ca6c06ea1401/libs/community/langchain_community/retrievers/qdrant_sparse_vector_retriever.py#L36
-    """
     def __init__(self, splade_doc_tokenizer, splade_doc_model, splade_query_tokenizer, splade_query_model,
                  device, batch_size, k):
         self.splade_doc_tokenizer = splade_doc_tokenizer
