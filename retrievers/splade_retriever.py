@@ -95,7 +95,7 @@ def dot_dist(x, y):
     return -dist.sum()
 
 
-class SparseVectorRetriever:
+class SpladeRetriever:
     def __init__(self, splade_doc_tokenizer, splade_doc_model, splade_query_tokenizer, splade_query_model,
                  device, batch_size, k):
         self.splade_doc_tokenizer = splade_doc_tokenizer
