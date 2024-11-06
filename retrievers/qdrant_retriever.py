@@ -20,8 +20,7 @@ try:
     from ..utils import Document
 except:
     from utils import Document
-    from sklearn.neighbors import NearestNeighbors
-    from scipy.sparse import csr_array, vstack
+    from scipy.sparse import csr_array
 
 class SimilarLengthsBatchifyer:
     """
@@ -94,6 +93,13 @@ class SimilarLengthsBatchifyer:
                 yield batch_indices
 
 
+def dot_dist(x, y):
+    #return -np.dot(x, y).sum()
+    dist = np.dot(x, y).data
+    if dist.size == 0:
+        return np.inf
+    return -dist.sum()
+
 class MyQdrantSparseVectorRetriever:
     """
     Based on:
@@ -119,15 +125,6 @@ class MyQdrantSparseVectorRetriever:
         self.metadata_payload_key = metadata_payload_key
         self.filter = filter
         self.search_options = search_options
-
-        def cool_dist(x, y):
-            #return -np.dot(x, y).sum()
-            dist = np.dot(x, y).data
-            if dist.size == 0:
-                return np.inf
-            return -dist.sum()
-
-        self.nearest_neighbors = NearestNeighbors(n_neighbors=k, algorithm="auto", metric=cool_dist, n_jobs=-1)
 
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
@@ -207,7 +204,7 @@ class MyQdrantSparseVectorRetriever:
 
         indices, values = self.compute_document_vectors(texts, self.batch_size)
 
-        self.nearest_neighbors.fit(vstack([csr_array((val, (ind,)), shape=(30522,)) for val, ind in zip(values, indices)]).astype(np.float32))
+        self.doc_vecs = [csr_array((val, (ind,)), shape=(30522,)) for val, ind in zip(values, indices)]
 
         #points = [
         #    models.PointStruct(
@@ -249,10 +246,11 @@ class MyQdrantSparseVectorRetriever:
         #client = cast(QdrantClient, self.client)
         query_indices, query_values = self.compute_query_vector(query)
 
-        _, neighbor_indices = self.nearest_neighbors.kneighbors(csr_array((query_values, (query_indices,)),
-                                                                          shape=(30522,)).reshape(1, -1).astype(np.float32))
+        sparse_query_vec = csr_array((query_values, (query_indices,)),shape=(30522,))
+        dists = [dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.doc_vecs]
+        sorted_indices = np.argsort(dists)
 
-        return [Document(self.texts[i], self.metadatas[i]) for i in neighbor_indices[0]]
+        return [Document(self.texts[i], self.metadatas[i]) for i in sorted_indices[:self.k]]
 
         results = client.search(
             self.collection_name,
