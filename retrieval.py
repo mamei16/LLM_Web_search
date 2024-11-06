@@ -94,9 +94,10 @@ class DocumentRetriever:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Downloading and chunking webpages..."
-        #split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
-        with open("white_island_docs", "rb") as f:
-            split_docs = pickle.load(f)
+        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
+        with open("white_island_docs", "wb") as f:
+            #split_docs = pickle.load(f)
+            pickle.dump(split_docs, f)
 
 
         yield "Retrieving relevant results..."
@@ -147,9 +148,9 @@ async def async_download_html(url: str, headers: Dict, timeout: int):
             resp = await session.get(url)
             return await resp.text(), url
         except UnicodeDecodeError:
-            print(
-                f"LLM_Web_search | {url} generated an exception: Expected content type text/html. Got {resp.headers['Content-Type']}.")
-        except TimeoutError as exc:
+            if not resp.headers['Content-Type'].startswith("text/html"):
+                print(f"LLM_Web_search | {url} generated an exception: Expected content type text/html. Got {resp.headers['Content-Type']}.")
+        except TimeoutError:
             print('LLM_Web_search | %r did not load in time' % url)
         except Exception as exc:
             print('LLM_Web_search | %r generated an exception: %s' % (url, exc))
