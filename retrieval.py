@@ -15,21 +15,16 @@ import optimum.bettertransformer.transformation
 from sentence_transformers import SentenceTransformer
 
 try:
-    from qdrant_client import QdrantClient, models
-except ImportError:
-    pass
-
-try:
     from .retrievers.faiss_retriever import FaissRetriever
     from .retrievers.bm25_retriever import BM25Retriever
-    from .retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
+    from .retrievers.splade_retriever import SpladeRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
     from .utils import Document
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
-    from retrievers.qdrant_retriever import MyQdrantSparseVectorRetriever
+    from retrievers.splade_retriever import SpladeRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
     from utils import Document
@@ -46,8 +41,6 @@ class DocumentRetriever:
                                                    device=device,
                                                    model_kwargs={"torch_dtype": torch.float32 if device == "cpu" else torch.float16})
         if keyword_retriever == "splade":
-            if "QdrantClient" not in globals():
-                raise ImportError("Package qrant_client is missing. Please install it using 'pip install qdrant-client'")
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
@@ -118,31 +111,12 @@ class DocumentRetriever:
                                                                  preprocess_func=self.preprocess_text)
                 keyword_retriever.k = self.num_results
             elif self.keyword_retriever == "splade":
-                client = QdrantClient(location=":memory:")
-                collection_name = "sparse_collection"
-                vector_name = "sparse_vector"
-
-                client.create_collection(
-                    collection_name,
-                    vectors_config={},
-                    sparse_vectors_config={
-                        vector_name: models.SparseVectorParams(
-                            index=models.SparseIndexParams(
-                                on_disk=False,
-                            )
-                        )
-                    },
-                )
-
-                keyword_retriever = MyQdrantSparseVectorRetriever(
+                keyword_retriever = SpladeRetriever(
                     splade_doc_tokenizer=self.splade_doc_tokenizer,
                     splade_doc_model=self.splade_doc_model,
                     splade_query_tokenizer=self.splade_query_tokenizer,
                     splade_query_model=self.splade_query_model,
                     device=self.device,
-                    client=client,
-                    collection_name=collection_name,
-                    sparse_vector_name=vector_name,
                     batch_size=self.splade_batch_size,
                     k=self.num_results
                 )
@@ -164,9 +138,9 @@ async def async_download_html(url: str, headers: Dict, timeout: int):
             resp = await session.get(url)
             return await resp.text(), url
         except UnicodeDecodeError:
-            print(
-                f"LLM_Web_search | {url} generated an exception: Expected content type text/html. Got {resp.headers['Content-Type']}.")
-        except TimeoutError as exc:
+            if not resp.headers['Content-Type'].startswith("text/html"):
+                print(f"LLM_Web_search | {url} generated an exception: Expected content type text/html. Got {resp.headers['Content-Type']}.")
+        except TimeoutError:
             print('LLM_Web_search | %r did not load in time' % url)
         except Exception as exc:
             print('LLM_Web_search | %r generated an exception: %s' % (url, exc))

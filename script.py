@@ -65,7 +65,6 @@ def setup():
     """
     global params
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
-    os.environ["QDRANT__TELEMETRY_DISABLED"] = "true"
 
     try:
         with open(os.path.join(extension_path, "settings.json"), "r") as f:

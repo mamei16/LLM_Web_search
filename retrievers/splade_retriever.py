@@ -1,25 +1,20 @@
 from typing import (
-    Any,
     Iterable,
     List,
     Optional,
     Tuple,
-    cast,
     Dict
 )
 
 import torch
 import numpy as np
-
-try:
-    from qdrant_client import QdrantClient, models
-except ImportError:
-    pass
+from scipy.sparse import csr_array
 
 try:
     from ..utils import Document
 except:
     from utils import Document
+
 
 class SimilarLengthsBatchifyer:
     """
@@ -92,31 +87,27 @@ class SimilarLengthsBatchifyer:
                 yield batch_indices
 
 
-class MyQdrantSparseVectorRetriever:
-    """
-    Based on:
-    https://github.com/langchain-ai/langchain/blob/447c0dd2f051157a3ccdac49a8d5ca6c06ea1401/libs/community/langchain_community/retrievers/qdrant_sparse_vector_retriever.py#L36
-    """
-    def __init__(self, splade_doc_tokenizer, splade_doc_model, splade_query_tokenizer, splade_query_model,
-                 device, client, collection_name, sparse_vector_name, batch_size, k,
-                 content_payload_key: str = "content", metadata_payload_key: str = "metadata", filter = None,
-                 search_options: Dict[str, Any] = {}
+def neg_dot_dist(x, y):
+    dist = np.dot(x, y).data
+    if dist.size == 0:  # no overlapping non-zero entries between x and y
+        return np.inf
+    return -dist.sum()
 
-    ):
+
+class SpladeRetriever:
+    def __init__(self, splade_doc_tokenizer, splade_doc_model, splade_query_tokenizer, splade_query_model,
+                 device, batch_size, k):
         self.splade_doc_tokenizer = splade_doc_tokenizer
         self.splade_doc_model = splade_doc_model
         self.splade_query_tokenizer = splade_query_tokenizer
         self.splade_query_model = splade_query_model
         self.device = device
-        self.client = client
-        self.collection_name = collection_name
-        self.sparse_vector_name = sparse_vector_name
         self.batch_size = batch_size
         self.k = k
-        self.content_payload_key = content_payload_key
-        self.metadata_payload_key = metadata_payload_key
-        self.filter = filter
-        self.search_options = search_options
+        self.vocab_size = splade_doc_model.config.vocab_size
+        self.texts: List[str] = []
+        self.metadatas: List[Dict] = []
+        self.sparse_doc_vecs: List[csr_array] = []
 
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
@@ -182,79 +173,27 @@ class MyQdrantSparseVectorRetriever:
     def add_texts(
         self,
         texts: Iterable[str],
-        metadatas: Optional[List[dict]] = None,
-        **kwargs: Any,
-    ):
-        client = cast(QdrantClient, self.client)
+        metadatas: Optional[List[dict]] = None):
 
         # Remove duplicate and empty texts
         text_to_metadata = {texts[i]: metadatas[i] for i in range(len(texts)) if len(texts[i]) > 0}
         texts = list(text_to_metadata.keys())
         metadatas = list(text_to_metadata.values())
+        self.texts = texts
+        self.metadatas = metadatas
 
         indices, values = self.compute_document_vectors(texts, self.batch_size)
+        self.sparse_doc_vecs = [csr_array((val, (ind,)),
+                                          shape=(self.vocab_size,)) for val, ind in zip(values, indices)]
 
-        points = [
-            models.PointStruct(
-                id=i + 1,
-                vector={
-                    self.sparse_vector_name: models.SparseVector(
-                        indices=indices[i],
-                        values=values[i],
-                    )
-                },
-                payload={
-                    self.content_payload_key: texts[i],
-                    self.metadata_payload_key: metadatas[i] if metadatas else None,
-                },
-            )
-            for i in range(len(texts))
-        ]
-        client.upsert(self.collection_name, points=points, **kwargs)
         if self.device == "cuda":
             torch.cuda.empty_cache()
 
-    @classmethod
-    def _document_from_scored_point(
-        cls,
-        scored_point: Any,
-        collection_name: str,
-        content_payload_key: str,
-        metadata_payload_key: str,
-    ) -> Document:
-        metadata = scored_point.payload.get(metadata_payload_key) or {}
-        metadata["_id"] = scored_point.id
-        metadata["_collection_name"] = collection_name
-        return Document(
-            page_content=scored_point.payload.get(content_payload_key),
-            metadata=metadata,
-        )
-
     def get_relevant_documents(self, query: str) -> List[Document]:
-        client = cast(QdrantClient, self.client)
         query_indices, query_values = self.compute_query_vector(query)
 
-        results = client.search(
-            self.collection_name,
-            query_filter=self.filter,
-            query_vector=models.NamedSparseVector(
-                name=self.sparse_vector_name,
-                vector=models.SparseVector(
-                    indices=query_indices,
-                    values=query_values,
-                ),
-            ),
-            limit=self.k,
-            with_vectors=False,
-            **self.search_options,
-        )
+        sparse_query_vec = csr_array((query_values, (query_indices,)),shape=(self.vocab_size,))
+        dists = [neg_dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.sparse_doc_vecs]
+        sorted_indices = np.argsort(dists)
 
-        return [
-            self._document_from_scored_point(
-                point,
-                self.collection_name,
-                self.content_payload_key,
-                self.metadata_payload_key,
-            )
-            for point in results
-        ]
+        return [Document(self.texts[i], self.metadatas[i]) for i in sorted_indices[:self.k]]
