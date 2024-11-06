@@ -602,6 +602,7 @@ def history_modifier(history):
     if update_history[chat_id]:
         # Replace the last reply in the internal history (which does not contain any search results) with the
         # concatenation of all recursive searches and their model completions, which *do* contain the full results.
-        history["internal"][-1][-1] = update_history[chat_id]
+        if len(history["internal"]) > 0:
+            history["internal"][-1][-1] = update_history[chat_id]
         update_history[chat_id] = ""
     return history
