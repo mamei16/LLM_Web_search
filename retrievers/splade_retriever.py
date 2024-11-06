@@ -87,7 +87,7 @@ class SimilarLengthsBatchifyer:
                 yield batch_indices
 
 
-def dot_dist(x, y):
+def neg_dot_dist(x, y):
     dist = np.dot(x, y).data
     if dist.size == 0:  # no overlapping non-zero entries between x and y
         return np.inf
@@ -193,7 +193,7 @@ class SpladeRetriever:
         query_indices, query_values = self.compute_query_vector(query)
 
         sparse_query_vec = csr_array((query_values, (query_indices,)),shape=(self.vocab_size,))
-        dists = [dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.sparse_doc_vecs]
+        dists = [neg_dot_dist(sparse_query_vec, doc_vec) for doc_vec in self.sparse_doc_vecs]
         sorted_indices = np.argsort(dists)
 
         return [Document(self.texts[i], self.metadatas[i]) for i in sorted_indices[:self.k]]
