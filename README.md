@@ -137,9 +137,7 @@ you can also select [SPLADE](https://github.com/naver/splade) in the "Advanced s
 as an alternative. It has been [shown](https://arxiv.org/pdf/2207.03834.pdf) to outperform BM25 in multiple benchmarks 
 and uses a technique called "query expansion" to add additional contextually relevant words
 to the original query. However, it is slower than BM25. You can read more about it [here](https://www.pinecone.io/learn/splade/).  
-To use SPLADE, you have to install the additional dependency [qdrant-client](https://github.com/qdrant/qdrant-client). 
-Simply activate the conda environment of the main web UI and run
-`pip install qdrant-client`.  
+
 To improve performance, documents are embedded in batches and in parallel. Increasing the
 "SPLADE batch size" parameter setting improves performance up to a certain point,
 but VRAM usage ramps up quickly with increasing batch size. A batch size of 8 appears 
