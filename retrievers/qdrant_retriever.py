@@ -1,10 +1,8 @@
 from typing import (
-    Any,
     Iterable,
     List,
     Optional,
     Tuple,
-    cast,
     Dict
 )
 
@@ -16,6 +14,7 @@ try:
 except:
     from utils import Document
     from scipy.sparse import csr_array
+
 
 class SimilarLengthsBatchifyer:
     """
