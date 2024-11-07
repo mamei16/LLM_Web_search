@@ -157,4 +157,4 @@ For natural language, this method generally produces much better results than ch
 
 ## Recommended models
 If you (like me) have ≤ 12 GB VRAM, I recommend using 
-[Llama-3.1-8B-instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct) or [gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it).
+[Llama-3.1-8B-instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct), [gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it) or [Mistral-Nemo-Instruct-2407](https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407).
