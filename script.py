@@ -53,7 +53,7 @@ params = {
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 document_retriever = None
-update_history = defaultdict(str)
+update_history_dict = defaultdict(str)
 chat_id = None
 force_search = False
 
@@ -174,9 +174,16 @@ def toggle_forced_search(value):
     global force_search
     force_search = value
 
+
 def update_chat_id(_id):
     global chat_id
     chat_id = _id
+
+
+def clear_update_history_dict():
+    global update_history_dict
+    update_history_dict[chat_id] = ""
+
 
 def ui():
     """
@@ -396,13 +403,16 @@ def ui():
     # Add event listener to "Past chats" radio menu to get the current unique chat ID
     shared.gradio['unique_id'].change(update_chat_id, shared.gradio['unique_id'], None)
 
+    # Don't update internal history with search results if last reply was removed
+    shared.gradio['Remove last'].click(clear_update_history_dict, None, None)
+
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
     """
     Overrides the main text generation function.
     :return:
     """
-    global update_history, document_retriever
+    global update_history_dict, document_retriever
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
@@ -532,10 +542,10 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 yield f"{original_model_reply}\n{new_reply}"
 
         if not display_results:
-            update_history[state["unique_id"]] = f"{reply}\n{update_history[state['unique_id']]}"
+            update_history_dict[state["unique_id"]] = f"{reply}\n{update_history_dict[state['unique_id']]}"
     else:
         if recursive_call and not display_search_results:
-            update_history[state["unique_id"]] = f"{reply}\n{update_history[state['unique_id']]}"
+            update_history_dict[state["unique_id"]] = f"{reply}\n{update_history_dict[state['unique_id']]}"
 
 
 
@@ -598,11 +608,11 @@ def history_modifier(history):
     :param history:
     :return:
     """
-    global update_history
-    if update_history[chat_id]:
+    global update_history_dict
+    if update_history_dict[chat_id]:
         # Replace the last reply in the internal history (which does not contain any search results) with the
         # concatenation of all recursive searches and their model completions, which *do* contain the full results.
         if len(history["internal"]) > 0:
-            history["internal"][-1][-1] = update_history[chat_id]
-        update_history[chat_id] = ""
+            history["internal"][-1][-1] = update_history_dict[chat_id]
+        update_history_dict[chat_id] = ""
     return history
