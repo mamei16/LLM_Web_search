@@ -17,13 +17,19 @@ class FaissRetriever:
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
         self.index = faiss.IndexFlatL2(embedding_model.get_sentence_embedding_dimension())
+        self.document_embeddings = []
+        self.documents = []
 
     def add_documents(self, documents: List[Document]):
+        if not documents:
+            return
         self.documents = documents
         self.document_embeddings = self.embedding_model.encode([doc.page_content for doc in documents])
         self.index.add(self.document_embeddings)
 
     def get_relevant_documents(self, query: str) -> List[Document]:
+        if not self.documents:
+            return []
         query_embedding = self.embedding_model.encode(query)
         D, I = self.index.search(query_embedding.reshape(1, -1), self.num_results)
         result_indices = I[0]

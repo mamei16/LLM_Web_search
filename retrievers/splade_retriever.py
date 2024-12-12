@@ -166,6 +166,8 @@ class SpladeRetriever:
         Returns:
             List[str]: List of IDs of the added texts.
         """
+        if not documents:
+            return []
         texts = [doc.page_content for doc in documents]
         metadatas = [doc.metadata for doc in documents]
         return self.add_texts(texts, metadatas)
@@ -190,6 +192,8 @@ class SpladeRetriever:
             torch.cuda.empty_cache()
 
     def get_relevant_documents(self, query: str) -> List[Document]:
+        if not self.texts:
+            return []
         query_indices, query_values = self.compute_query_vector(query)
 
         sparse_query_vec = csr_array((query_values, (query_indices,)),shape=(self.vocab_size,))
