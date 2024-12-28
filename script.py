@@ -185,6 +185,11 @@ def clear_update_history_dict():
     update_history_dict[chat_id] = ""
 
 
+def get_force_search_box_theme_js():
+    with open(f"{extension_path}/force_search_box_theme.js", "r") as f:
+        return f.read()
+
+
 def ui():
     """
     Creates custom gradio elements when the UI is launched.
@@ -406,6 +411,9 @@ def ui():
     # Don't update internal history with search results if last reply was removed
     shared.gradio['Remove last'].click(clear_update_history_dict, None, None)
 
+    # Change font color and invert checkmark color of force search checkbox when dark mode is toggled
+    shared.gradio['theme_state'].change(None, None, None, js=f"() => {{ {get_force_search_box_theme_js()}; toggleForceSearchDarkMode() }}")
+
 
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
     """
@@ -577,7 +585,9 @@ def custom_js():
     :return:
     """
     with open(os.path.join(extension_path, "script.js"), "r") as f:
-        return f.read()
+        script_js = f.read()
+    force_search_box_theme_js = get_force_search_box_theme_js()
+    return script_js + force_search_box_theme_js + ";toggleForceSearchDarkMode();"
 
 
 def chat_input_modifier(text, visible_text, state):
