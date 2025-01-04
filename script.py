@@ -48,7 +48,8 @@ params = {
     "chunking method": "character-based",
     "chunker breakpoint_threshold_amount": 30,
     "simple search": False,
-    "client timeout": 10
+    "client timeout": 10,
+    "show force search checkbox": True
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -256,6 +257,8 @@ def ui():
                                        label='Display search results in chat')
             show_url_content = gr.Checkbox(value=lambda: params['display extracted URL content in chat'],
                                            label='Display extracted URL content in chat')
+            show_force_search = gr.Checkbox(value=lambda: params['show force search checkbox'],
+                                           label='Show force search checkbox', elem_id="show-force-search-box")
     gr.Markdown(value='---')
     with gr.Row():
         with gr.Column():
@@ -373,6 +376,7 @@ def ui():
     show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
                             None)
+    show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
 
     delete_button.click(
