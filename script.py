@@ -49,7 +49,8 @@ params = {
     "chunker breakpoint_threshold_amount": 30,
     "simple search": False,
     "client timeout": 10,
-    "show force search checkbox": True
+    "show force search checkbox": True,
+    "duckduckgo region": "wt-wt",
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -337,6 +338,26 @@ def ui():
                                value=lambda: params["chunk size"], precision=0,
                                visible=not params["simple search"])
 
+    ddgs_region = gr.Dropdown(choices=[('No region', 'wt-wt'), ('Arabia', 'xa-ar'), ('Arabia (en)', 'xa-en'), ('Argentina', 'ar-es'),
+                                       ('Australia', 'au-en'), ('Austria', 'at-de'), ('Belgium (fr)', 'be-fr'), ('Belgium (nl)', 'be-nl'),
+                                       ('Brazil', 'br-pt'), ('Bulgaria', 'bg-bg'), ('Canada', 'ca-en'), ('Canada (fr)', 'ca-fr'),
+                                       ('Catalan', 'ct-ca'), ('Chile', 'cl-es'), ('China', 'cn-zh'), ('Colombia', 'co-es'),
+                                       ('Croatia', 'hr-hr'), ('Czech Republic', 'cz-cs'), ('Denmark', 'dk-da'), ('Estonia', 'ee-et'),
+                                       ('Finland', 'fi-fi'), ('France', 'fr-fr'), ('Germany', 'de-de'), ('Greece', 'gr-el'),
+                                       ('Hong Kong', 'hk-tzh'), ('Hungary', 'hu-hu'), ('India', 'in-en'), ('Indonesia', 'id-id'),
+                                       ('Indonesia (en)', 'id-en'), ('Ireland', 'ie-en'), ('Israel', 'il-he'), ('Italy', 'it-it'),
+                                       ('Japan', 'jp-jp'), ('Korea', 'kr-kr'), ('Latvia', 'lv-lv'), ('Lithuania', 'lt-lt'),
+                                       ('Latin America', 'xl-es'), ('Malaysia', 'my-ms'), ('Malaysia (en)', 'my-en'), ('Mexico', 'mx-es'),
+                                       ('Netherlands', 'nl-nl'), ('New Zealand', 'nz-en'), ('Norway', 'no-no'), ('Peru', 'pe-es'),
+                                       ('Philippines', 'ph-en'), ('Philippines (tl)', 'ph-tl'), ('Poland', 'pl-pl'), ('Portugal', 'pt-pt'),
+                                       ('Romania', 'ro-ro'), ('Russia', 'ru-ru'), ('Singapore', 'sg-en'), ('Slovak Republic', 'sk-sk'),
+                                       ('Slovenia', 'sl-sl'), ('South Africa', 'za-en'), ('Spain', 'es-es'), ('Sweden', 'se-sv'),
+                                       ('Switzerland (de)', 'ch-de'), ('Switzerland (fr)', 'ch-fr'), ('Switzerland (it)', 'ch-it'),
+                                       ('Taiwan', 'tw-tzh'), ('Thailand', 'th-th'), ('Turkey', 'tr-tr'), ('Ukraine', 'ua-uk'),
+                                       ('United Kingdom', 'uk-en'), ('United States', 'us-en'), ('United States (es)', 'ue-es'),
+                                       ('Venezuela', 've-es'), ('Vietnam', 'vn-vi')],
+                              value=lambda: params["duckduckgo region"],
+                              label='DuckDuckGo region')
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=lambda: params["searxng url"])
@@ -377,6 +398,7 @@ def ui():
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
                             None)
     show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
+    ddgs_region.change(lambda x: params.update({"duckduckgo region": x}), ddgs_region, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
 
     delete_button.click(
@@ -490,7 +512,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                                       document_retriever,
                                                                       max_search_results,
                                                                       instant_answers,
-                                                                      simple_search))
+                                                                      simple_search,
+                                                                      region=params['duckduckgo region']))
             else:
                 search_generator = Generator(retrieve_from_searxng(search_term,
                                                                    searxng_url,

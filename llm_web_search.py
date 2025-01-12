@@ -14,7 +14,7 @@ except ImportError:
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
-                      regular_search_queries: bool = True, get_website_content: bool = False) -> list[dict]:
+                      regular_search_queries: bool = True, get_website_content: bool = False, region: str = 'wt-wt') -> list[dict]:
     query = query.strip("\"'")
     with DDGS() as ddgs:
         if instant_answers:
@@ -33,7 +33,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
             return [answer_dict]
         elif regular_search_queries:
             results = []
-            for result in ddgs.text(query, region='wt-wt', safesearch='moderate',
+            for result in ddgs.text(query, region=region, safesearch='moderate',
                                     timelimit=None, max_results=max_results):
                 if get_website_content:
                     result["body"] = get_webpage_content(result["href"])
@@ -44,7 +44,7 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 
 def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, max_results: int,
-                                instant_answers: bool, simple_search: bool = False):
+                                instant_answers: bool, simple_search: bool = False, region: str = 'wt-wt'):
     documents = []
     query = query.strip("\"'")
     yield f'Getting results from DuckDuckGo...'
@@ -61,7 +61,7 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
 
         result_documents = []
         result_urls = []
-        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
+        for result in ddgs.text(query, region=region, safesearch='moderate', timelimit=None,
                                 max_results=document_retriever.num_results):
             result_document = Document(page_content=f"Title: {result['title']}\n{result['body']}",
                                        metadata={"source": result["href"]})
