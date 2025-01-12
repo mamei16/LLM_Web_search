@@ -6,17 +6,17 @@ from duckduckgo_search import DDGS
 from bs4 import BeautifulSoup
 
 try:
-    from .retrieval import DocumentRetriever
+    from .retrieval import DocumentRetriever, convert_to_proxies
     from .utils import Document, Generator
 except ImportError:
-    from retrieval import DocumentRetriever
+    from retrieval import DocumentRetriever, convert_to_proxies
     from utils import Document, Generator
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
-                      regular_search_queries: bool = True, get_website_content: bool = False, region: str = 'wt-wt') -> list[dict]:
+                      regular_search_queries: bool = True, get_website_content: bool = False, region: str = 'wt-wt', proxy: str = "") -> list[dict]:
     query = query.strip("\"'")
-    with DDGS() as ddgs:
+    with DDGS(proxy=proxy if proxy else None) as ddgs:
         if instant_answers:
             answer_list = ddgs.answers(query)
         else:
@@ -44,11 +44,11 @@ def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True
 
 
 def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, max_results: int,
-                                instant_answers: bool, simple_search: bool = False, region: str = 'wt-wt'):
+                                instant_answers: bool, simple_search: bool = False, region: str = 'wt-wt', proxy: str = ""):
     documents = []
     query = query.strip("\"'")
     yield f'Getting results from DuckDuckGo...'
-    with DDGS() as ddgs:
+    with DDGS(proxy=proxy if proxy else None) as ddgs:
         if instant_answers:
             answer_list = ddgs.answers(query)
             if answer_list:
@@ -71,7 +71,7 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
     else:
-        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
+        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls, proxy=proxy))
 
     for status_message in retrieval_gen:
         yield status_message
@@ -85,7 +85,8 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
 
 
 def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int,
-                          instant_answers: bool, simple_search: bool = False):
+                          instant_answers: bool, simple_search: bool = False, proxy: str = ""):
+    proxies=convert_to_proxies(proxy)
     yield f'Getting results from Searxng...'
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -95,7 +96,7 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
     request_str = f"/search?q={urllib.parse.quote(query)}&format=json&pageno="
     pageno = 1
     while len(result_urls) < document_retriever.num_results:
-        response = requests.get(url + request_str + str(pageno), headers=headers)
+        response = requests.get(url + request_str + str(pageno), headers=headers, proxies=proxies)
 
         if not result_urls:     # no results to lose by raising an exception here
             response.raise_for_status()
@@ -125,7 +126,7 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
     else:
-        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
+        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls, proxy=proxy))
 
     for status_message in retrieval_gen:
         yield status_message
@@ -133,17 +134,18 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
     return documents[:max_results]
 
 
-def get_webpage_content(url: str) -> str:
+def get_webpage_content(url: str, proxy: str = "") -> str:
+    proxies = convert_to_proxies(proxy)
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
     if not url.startswith("https://"):
         try:
-            response = requests.get(f"https://{url}", headers=headers)
+            response = requests.get(f"https://{url}", headers=headers, proxies=proxies)
         except:
-            response = requests.get(url, headers=headers)
+            response = requests.get(url, headers=headers, proxies=proxies)
     else:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, proxies=proxies)
 
     soup = BeautifulSoup(response.content, features="lxml")
     for script in soup(["script", "style"]):
