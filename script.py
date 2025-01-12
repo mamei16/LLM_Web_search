@@ -49,7 +49,8 @@ params = {
     "chunker breakpoint_threshold_amount": 30,
     "simple search": False,
     "client timeout": 10,
-    "show force search checkbox": True
+    "show force search checkbox": True,
+    "proxy": "",
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -340,6 +341,7 @@ def ui():
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=lambda: params["searxng url"])
+    proxy = gr.Textbox(label='Proxy', placeholder='proto://username:password@host:port', value=params['proxy'])
 
     # Event functions to update the parameters in the backend
     enable.input(toggle_extension, enable, enable)
@@ -378,6 +380,7 @@ def ui():
                             None)
     show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
+    proxy.change(lambda x: params.update({"proxy": x}), proxy, None)
 
     delete_button.click(
         lambda x: x, system_prompt, gradio('delete_filename')).then(
@@ -490,14 +493,16 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                                                                       document_retriever,
                                                                       max_search_results,
                                                                       instant_answers,
-                                                                      simple_search))
+                                                                      simple_search,
+                                                                      proxy=params['proxy']))
             else:
                 search_generator = Generator(retrieve_from_searxng(search_term,
                                                                    searxng_url,
                                                                    document_retriever,
                                                                    max_search_results,
                                                                    instant_answers,
-                                                                   simple_search))
+                                                                   simple_search,
+                                                                   proxy=params['proxy']))
             try:
                 for status_message in search_generator:
                     yield original_model_reply + f"\n*{status_message}*"
@@ -528,7 +533,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
             reply += "\n```plaintext"
             reply += "\nURL opener tool:\n"
             try:
-                webpage_content = get_webpage_content(url)
+                webpage_content = get_webpage_content(url, proxy=params['proxy'])
             except Exception as exc:
                 reply += f"Couldn't open {url}. Error message: {str(exc)}"
                 print(f'LLM_Web_search | {url} generated an exception: {str(exc)}')

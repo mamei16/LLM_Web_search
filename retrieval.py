@@ -85,7 +85,7 @@ class DocumentRetriever:
         faiss_retriever.add_documents(documents)
         return faiss_retriever.get_relevant_documents(query)
 
-    def retrieve_from_webpages(self, query: str, url_list: list[str]) -> list[Document]:
+    def retrieve_from_webpages(self, query: str, url_list: list[str], proxy: str = "") -> list[Document]:
         if self.chunking_method == "semantic":
             text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
                                                    breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
@@ -94,7 +94,7 @@ class DocumentRetriever:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         yield "Downloading and chunking webpages..."
-        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
+        split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout, proxy=proxy))
 
         yield "Retrieving relevant results..."
         if self.ensemble_weighting > 0:
@@ -133,11 +133,11 @@ class DocumentRetriever:
                                         weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
 
-async def async_download_html(url: str, headers: Dict, timeout: int):
+async def async_download_html(url: str, headers: Dict, timeout: int, proxy: str = ""):
     async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(timeout),
                                      max_field_size=65536) as session:
         try:
-            resp = await session.get(url)
+            resp = await session.get(url, proxy=proxy if proxy else None)
             return await resp.text(), url
         except UnicodeDecodeError:
             if not resp.headers['Content-Type'].startswith("text/html"):
@@ -151,12 +151,13 @@ async def async_download_html(url: str, headers: Dict, timeout: int):
 
 async def async_fetch_chunk_websites(urls: List[str],
                                      text_splitter: BoundedSemanticChunker or RecursiveCharacterTextSplitter,
-                                     timeout: int = 10):
+                                     timeout: int = 10,
+                                     proxy: str = ""):
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5",
                "Accept-Encoding": "br;q=1.0, gzip;q=0.8, *;q=0.1"}
-    result_futures = [async_download_html(url, headers, timeout) for url in urls]
+    result_futures = [async_download_html(url, headers, timeout, proxy=proxy) for url in urls]
     chunks = []
     for f in asyncio.as_completed(result_futures):
         result = await f
@@ -176,12 +177,13 @@ def docs_to_pretty_str(docs) -> str:
     return ret_str
 
 
-def download_html(url: str) -> bytes:
+def download_html(url: str, proxy: str = "") -> bytes:
+    proxies = convert_to_proxies(proxy)
     headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                "Accept-Language": "en-US,en;q=0.5"}
 
-    response = requests.get(url, headers=headers, verify=True, timeout=8)
+    response = requests.get(url, headers=headers, verify=True, timeout=8, proxies=proxies)
     response.raise_for_status()
 
     content_type = response.headers.get("Content-Type", "")
@@ -256,3 +258,13 @@ def unique_by_key(iterable: Iterable, key: Callable) -> Iterator:
         if (k := key(e)) not in seen:
             seen.add(k)
             yield e
+
+def convert_to_proxies(proxy: str = ""):
+    if proxy:
+        return {
+            "http": proxy,
+            "https": proxy,
+            "ftp": proxy,
+        }
+    else:
+        return None
