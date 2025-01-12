@@ -6,3 +6,5 @@ rank_bm25==0.2.2
 sentence-transformers==3.0.1
 optimum==1.23.2
 Brotli==1.1.0
+requests[socks]==2.32.3
+aiohttp-socks==0.10.1

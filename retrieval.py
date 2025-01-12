@@ -7,6 +7,10 @@ from collections import defaultdict
 from itertools import chain
 
 import aiohttp
+try:
+    from aiohttp_socks import ProxyConnector, ProxyType
+except ImportError:
+    ProxyConnector = None
 import requests
 import torch
 from bs4 import BeautifulSoup
@@ -132,10 +136,30 @@ class DocumentRetriever:
         return weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
                                         weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
 
+socks_get_connector_regex = re.compile(r'^(?P<proto>socks(?:4|4a|5|5h))://(?:(?P<username>[^:@/]*)(?::(?P<password>[^:@/]*))?@)?(?P<host>[A-Za-z0-9.-]+)(?::(?P<port>\d+))?$')
+def socks_get_connector(proxy: str):
+    if ProxyConnector is None:
+        return None
+    m = socks_get_connector_regex.match(proxy)
+    if not m:
+        return None
+    return ProxyConnector(
+        proxy_type=ProxyType.SOCKS5 if m.group('proto').startswith('socks5') else ProxyType.SOCKS4,
+        host=m.group('host'),
+        port=m.group('port') if m.group('port') else 1080,
+        username=m.group('username') if m.group('username') else None,
+        password=m.group('password') if m.group('password') else None,
+        rdns=m.group('proto') in ('socks4a', 'socks5h'),
+    )
 
 async def async_download_html(url: str, headers: Dict, timeout: int, proxy: str = ""):
+    connector = None
+    if ProxyConnector is not None and proxy.startswith('socks'):
+        connector = socks_get_connector(proxy)
+    if connector is not None:
+        proxy = ""
     async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(timeout),
-                                     max_field_size=65536) as session:
+                                     max_field_size=65536, connector=connector) as session:
         try:
             resp = await session.get(url, proxy=proxy if proxy else None)
             return await resp.text(), url
