@@ -41,18 +41,19 @@ class DocumentRetriever:
                                                    device=device,
                                                    model_kwargs={"torch_dtype": torch.float32 if device == "cpu" else torch.float16})
         if keyword_retriever == "splade":
+            splade_kwargs = {"cache_dir": model_cache_dir,
+                             "torch_dtype": torch.float32 if device == "cpu" else torch.float16,
+                             "attn_implementation":"eager",
+                             "use_safetensors": False}  # avoid weird redundant asynchronous safetensors download
+                                                        # after main download has already finished
             self.splade_doc_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
                                                                       cache_dir=model_cache_dir)
             self.splade_doc_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-doc",
-                                                                         cache_dir=model_cache_dir,
-                                                                         torch_dtype=torch.float32 if device == "cpu" else torch.float16,
-                                                                         attn_implementation="eager").to(self.device)
+                                                                         **splade_kwargs).to(self.device)
             self.splade_query_tokenizer = AutoTokenizer.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
-                                                                           cache_dir=model_cache_dir,
-                                                                           torch_dtype=torch.float32 if device == "cpu" else torch.float16,
-                                                                           attn_implementation="eager").to(self.device)
+                                                                           **splade_kwargs).to(self.device)
             optimum_logger = optimum.bettertransformer.transformation.logger
             original_log_level = optimum_logger.level
             # Set the level to 'ERROR' to ignore "The BetterTransformer padding during training warning"
