@@ -4,6 +4,7 @@ import json
 import os
 from datetime import datetime
 from collections import defaultdict
+from functools import partial
 
 import gradio as gr
 import torch
@@ -419,6 +420,35 @@ def ui():
     shared.gradio['theme_state'].change(None, None, None, js=f"() => {{ {get_force_search_box_theme_js()}; toggleForceSearchDarkMode() }}")
 
 
+def get_generation_prompt(state, impersonate=False):
+    chat_template_str = state['chat_template_str']
+    if state['mode'] != 'instruct':
+        chat_template_str = chat.replace_character_names(chat_template_str, state['name1'], state['name2'])
+
+    instruction_template = chat.jinja_env.from_string(state['instruction_template_str'])
+    chat_template = chat.jinja_env.from_string(chat_template_str)
+
+    instruct_renderer = partial(
+        instruction_template.render,
+        builtin_tools=None,
+        tools=None,
+        tools_in_user_message=False,
+        add_generation_prompt=False
+    )
+
+    chat_renderer = partial(
+        chat_template.render,
+        add_generation_prompt=False,
+        name1=state['name1'],
+        name2=state['name2'],
+        user_bio=chat.replace_character_names(state['user_bio'], state['name1'], state['name2']),
+    )
+    if state["mode"] == "instruct":
+        return chat.get_generation_prompt(instruct_renderer, impersonate, False)
+    else:
+        return chat.get_generation_prompt(chat_renderer, impersonate, False)
+
+
 def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
     """
     Overrides the main text generation function.
@@ -544,7 +574,8 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     if web_search or read_webpage:
         display_results = web_search and display_search_results or read_webpage and display_webpage_content
         # Add results to context and continue model output
-        new_question = chat.generate_chat_prompt(f"{question}{reply}", state)
+        start_turn_str, end_turn_str = get_generation_prompt(state)
+        new_question = question + reply + end_turn_str + start_turn_str
         new_reply = ""
         for new_reply in custom_generate_reply(new_question, new_question, seed, state,
                                                stopping_strings, is_chat=is_chat, recursive_call=True):
@@ -558,7 +589,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     else:
         if recursive_call and not display_search_results:
             update_history_dict[state["unique_id"]] = f"{reply}\n{update_history_dict[state['unique_id']]}"
-
 
 
 def output_modifier(string, state, is_chat=False):
