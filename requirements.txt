@@ -1,4 +1,4 @@
-faiss-cpu==1.8.0.post1
+faiss-cpu==1.10.0
 git+https://github.com/mamei16/duckduckgo_search@6.4.2
 beautifulsoup4==4.12.3
 unstructured==0.15.13
