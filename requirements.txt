@@ -1,6 +1,6 @@
 faiss-cpu==1.8.0.post1
 git+https://github.com/mamei16/duckduckgo_search@6.4.2
-beautifulsoup4==4.12.3
+beautifulsoup4==4.13.3
 unstructured==0.15.13
 rank_bm25==0.2.2
 sentence-transformers==3.0.1
