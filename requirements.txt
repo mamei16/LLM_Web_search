@@ -1,4 +1,4 @@
-faiss-cpu==1.8.0.post1
+faiss-cpu==1.10.0
 duckduckgo_search==7.4.4
 beautifulsoup4==4.12.3
 unstructured==0.15.13
