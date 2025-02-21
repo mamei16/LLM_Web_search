@@ -6,4 +6,4 @@ rank_bm25==0.2.2
 sentence-transformers==3.4.1
 optimum==1.24.0
 Brotli==1.1.0
-aiohttp
+aiohttp>=3.10.11
