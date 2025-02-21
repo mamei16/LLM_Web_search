@@ -3,6 +3,7 @@ import urllib
 import requests
 from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
+from duckduckgo_search.utils import json_loads
 from bs4 import BeautifulSoup
 
 try:
@@ -11,6 +12,80 @@ try:
 except ImportError:
     from retrieval import DocumentRetriever
     from utils import Document, Generator
+
+
+def answers(self, keywords: str) -> list[dict[str, str]]:
+        """DuckDuckGo instant answers. Query params: https://duckduckgo.com/params.
+
+        Args:
+            keywords: keywords for query,
+
+        Returns:
+            List of dictionaries with instant answers results.
+
+        Raises:
+            DuckDuckGoSearchException: Base exception for duckduckgo_search errors.
+            RatelimitException: Inherits from DuckDuckGoSearchException, raised for exceeding API request rate limits.
+            TimeoutException: Inherits from DuckDuckGoSearchException, raised for API request timeouts.
+        """
+        assert keywords, "keywords is mandatory"
+
+        payload = {
+            "q": f"what is {keywords}",
+            "format": "json",
+        }
+        resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
+        page_data = json_loads(resp_content)
+
+        results = []
+        answer = page_data.get("AbstractText")
+        url = page_data.get("AbstractURL")
+        if answer:
+            results.append(
+                {
+                    "icon": None,
+                    "text": answer,
+                    "topic": None,
+                    "url": url,
+                }
+            )
+
+        # related
+        payload = {
+            "q": f"{keywords}",
+            "format": "json",
+        }
+        resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
+        resp_json = json_loads(resp_content)
+        page_data = resp_json.get("RelatedTopics", [])
+
+        for row in page_data:
+            topic = row.get("Name")
+            if not topic:
+                icon = row["Icon"].get("URL")
+                results.append(
+                    {
+                        "icon": f"https://duckduckgo.com{icon}" if icon else "",
+                        "text": row["Text"],
+                        "topic": None,
+                        "url": row["FirstURL"],
+                    }
+                )
+            else:
+                for subrow in row["Topics"]:
+                    icon = subrow["Icon"].get("URL")
+                    results.append(
+                        {
+                            "icon": f"https://duckduckgo.com{icon}" if icon else "",
+                            "text": subrow["Text"],
+                            "topic": topic,
+                            "url": subrow["FirstURL"],
+                        }
+                    )
+
+        return results
+
+DDGS.answers = answers
 
 
 def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
