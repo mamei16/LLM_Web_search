@@ -11,80 +11,9 @@ import numpy as np
 from scipy.sparse import csr_array
 
 try:
-    from ..utils import Document
+    from ..utils import Document, SimilarLengthsBatchifyer
 except:
-    from utils import Document
-
-
-class SimilarLengthsBatchifyer:
-    """
-    Generator class to split samples into batches. Groups sample sequences
-    of equal/similar length together to minimize the need for padding within a batch.
-    """
-    def __init__(self, batch_size, inputs, max_padding_len=10):
-        # Remember number of samples
-        self.num_samples = len(inputs)
-
-        self.unique_lengths = set()
-        self.length_to_sample_indices = {}
-
-        for i in range(0, len(inputs)):
-            len_input = len(inputs[i])
-
-            self.unique_lengths.add(len_input)
-
-            # For each length, keep track of the indices of the samples that have this length
-            # E.g.: self.length_to_sample_indices = { 3: [3,5,11], 4: [1,2], ...}
-            if len_input in self.length_to_sample_indices:
-                self.length_to_sample_indices[len_input].append(i)
-            else:
-                self.length_to_sample_indices[len_input] = [i]
-
-        # Use a dynamic batch size to speed up inference at a constant VRAM usage
-        self.unique_lengths = sorted(list(self.unique_lengths))
-        max_chars_per_batch = self.unique_lengths[-1] * batch_size
-        self.length_to_batch_size = {length: int(max_chars_per_batch / (length * batch_size)) * batch_size for length in self.unique_lengths}
-
-        # Merge samples of similar lengths in those cases where the amount of samples
-        # of a particular length is < dynamic batch size
-        accum_len_diff = 0
-        for i in range(1, len(self.unique_lengths)):
-            if accum_len_diff >= max_padding_len:
-                accum_len_diff = 0
-                continue
-            curr_len = self.unique_lengths[i]
-            prev_len = self.unique_lengths[i-1]
-            len_diff = curr_len - prev_len
-            if (len_diff <= max_padding_len and
-                    (len(self.length_to_sample_indices[curr_len]) < self.length_to_batch_size[curr_len]
-                     or len(self.length_to_sample_indices[prev_len]) < self.length_to_batch_size[prev_len])):
-                self.length_to_sample_indices[curr_len].extend(self.length_to_sample_indices[prev_len])
-                self.length_to_sample_indices[prev_len] = []
-                accum_len_diff += len_diff
-            else:
-                accum_len_diff = 0
-
-    def __len__(self):
-        return self.num_samples
-
-    def __iter__(self):
-        # Iterate over all possible sentence lengths
-        for length in self.unique_lengths:
-
-            # Get indices of all samples for the current length
-            # for example, all indices of samples with a length of 7
-            sequence_indices = self.length_to_sample_indices[length]
-            if len(sequence_indices) == 0:
-                continue
-
-            dyn_batch_size = self.length_to_batch_size[length]
-
-            # Compute the number of batches
-            num_batches = np.ceil(len(sequence_indices) / dyn_batch_size)
-
-            # Loop over all possible batches
-            for batch_indices in np.array_split(sequence_indices, num_batches):
-                yield batch_indices
+    from utils import Document, SimilarLengthsBatchifyer
 
 
 def neg_dot_dist(x, y):
@@ -112,7 +41,9 @@ class SpladeRetriever:
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
-        batchifyer = SimilarLengthsBatchifyer(batch_size, texts)
+        tokenized_texts = self.splade_doc_tokenizer(texts, truncation=False, padding=False,
+                                                    return_tensors="np")["input_ids"]
+        batchifyer = SimilarLengthsBatchifyer(batch_size, tokenized_texts)
         texts = np.array(texts)
         batch_indices = []
         for index_batch in batchifyer:
