@@ -2,17 +2,16 @@ from typing import List, Callable
 
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 try:
-    from ..utils import Document, cosine_similarity
+    from ..utils import Document, cosine_similarity, MySentenceTransformer, SimilarLengthsBatchifyer
 except:
-    from utils import Document, cosine_similarity
+    from utils import Document, cosine_similarity, MySentenceTransformer, SimilarLengthsBatchifyer
 
 
 class FaissRetriever:
 
-    def __init__(self, embedding_model: SentenceTransformer, num_results: int = 5, similarity_threshold: float = 0.5):
+    def __init__(self, embedding_model: MySentenceTransformer, num_results: int = 5, similarity_threshold: float = 0.5):
         self.embedding_model = embedding_model
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
@@ -24,7 +23,7 @@ class FaissRetriever:
         if not documents:
             return
         self.documents = documents
-        self.document_embeddings = self.embedding_model.encode([doc.page_content for doc in documents])
+        self.document_embeddings = self.embedding_model.batch_encode([doc.page_content for doc in documents])
         self.index.add(self.document_embeddings)
 
     def get_relevant_documents(self, query: str) -> List[Document]:

@@ -12,7 +12,6 @@ import torch
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import optimum.bettertransformer.transformation
-from sentence_transformers import SentenceTransformer
 
 try:
     from .retrievers.faiss_retriever import FaissRetriever
@@ -20,14 +19,14 @@ try:
     from .retrievers.splade_retriever import SpladeRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
-    from .utils import Document
+    from .utils import Document, MySentenceTransformer
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
     from retrievers.splade_retriever import SpladeRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
-    from utils import Document
+    from utils import Document, MySentenceTransformer
 
 
 class DocumentRetriever:
@@ -37,9 +36,9 @@ class DocumentRetriever:
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10):
         self.device = device
-        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
-                                                   device=device,
-                                                   model_kwargs={"torch_dtype": torch.float32 if device == "cpu" else torch.float16})
+        self.embedding_model = MySentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
+                                                     device=device,
+                                                     model_kwargs={"torch_dtype": torch.float32 if device == "cpu" else torch.float16})
         if keyword_retriever == "splade":
             splade_kwargs = {"cache_dir": model_cache_dir,
                              "torch_dtype": torch.float32 if device == "cpu" else torch.float16,
