@@ -4,6 +4,7 @@ import requests
 from requests.exceptions import JSONDecodeError
 from duckduckgo_search import DDGS
 from duckduckgo_search.utils import json_loads
+from duckduckgo_search.exceptions import DuckDuckGoSearchException
 from bs4 import BeautifulSoup
 
 try:
@@ -35,7 +36,11 @@ def answers(self, keywords: str) -> list[dict[str, str]]:
             "format": "json",
         }
         resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
-        page_data = json_loads(resp_content)
+        try:
+            page_data = json_loads(resp_content)
+        except DuckDuckGoSearchException as e:
+            print(f"LLM_Web_search | DuckDuckGo instant answer yielded error: {str(e)}")
+            return []
 
         results = []
         answer = page_data.get("AbstractText")
@@ -56,8 +61,12 @@ def answers(self, keywords: str) -> list[dict[str, str]]:
             "format": "json",
         }
         resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
-        resp_json = json_loads(resp_content)
-        page_data = resp_json.get("RelatedTopics", [])
+        try:
+            resp_json = json_loads(resp_content)
+            page_data = resp_json.get("RelatedTopics", [])
+        except DuckDuckGoSearchException as e:
+            print(f"LLM_Web_search | DuckDuckGo instant answer yielded error: {str(e)}")
+            return results
 
         for row in page_data:
             topic = row.get("Name")
