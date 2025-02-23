@@ -200,6 +200,8 @@ class MySentenceTransformer(SentenceTransformer):
 
         if device is None:
             device = self.device
+        else:
+            device = torch.device(device)
 
         self.to(device)
 
@@ -273,7 +275,7 @@ class MySentenceTransformer(SentenceTransformer):
                     # fixes for #522 and #487 to avoid oom problems on gpu with large datasets
                     if convert_to_numpy:
                         embeddings = embeddings.to("cpu", non_blocking=True)
-                        torch.cuda.synchronize()
+                        sync_device(device)
 
                 all_embeddings.extend(embeddings)
 
@@ -305,3 +307,16 @@ class MySentenceTransformer(SentenceTransformer):
             all_embeddings = all_embeddings[0]
 
         return all_embeddings
+
+
+def sync_device(device: torch.device):
+    if device.type == "cpu":
+        return
+    elif device.type == "cuda":
+        torch.cuda.synchronize()
+    elif device.type == "mps":
+        torch.mps.synchronize()
+    elif device.type == "xpu":
+        torch.xpu.synchronize(device)
+    else:
+        warnings.warn("Device type does not match 'cuda', 'xpu' or 'mps'. Not synchronizing")
