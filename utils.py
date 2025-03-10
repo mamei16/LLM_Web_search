@@ -348,6 +348,8 @@ class MyDDGS(DDGS):
         }
         try:
             resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
+            if not isinstance(resp_content, bytes) and hasattr(resp_content, "content"):
+                resp_content = resp_content.content
             page_data = json_loads(resp_content)
         except DuckDuckGoSearchException as e:
             print(f"LLM_Web_search | DuckDuckGo instant answer yielded error: {str(e)}")
