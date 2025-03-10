@@ -4,12 +4,13 @@ channels:
   - pytorch
 dependencies:
 - pip
-- faiss-cpu=1.8.0
+- faiss-cpu=1.10.0
 - pip:
-  - git+https://github.com/mamei16/duckduckgo_search@6.4.2
-  - beautifulsoup4==4.12.3
-  - unstructured==0.15.13
+  - duckduckgo_search==7.5.1
+  - beautifulsoup4==4.13.3
+  - unstructured==0.16.23
   - rank_bm25==0.2.2
-  - sentence-transformers==3.0.1
-  - optimum==1.23.2
+  - sentence-transformers==3.4.1
+  - optimum==1.24.0
   - Brotli==1.1.0
+  - aiohttp>=3.10.11
