@@ -65,7 +65,6 @@ def setup():
     Is executed when the extension gets imported.
     :return:
     """
-    global params
     os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
     try:
@@ -83,7 +82,6 @@ def setup():
 
 
 def save_settings():
-    global params
     with open(os.path.join(extension_path, "settings.json"), "w") as f:
         json.dump(params, f, indent=4)
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -183,7 +181,6 @@ def update_chat_id(_id):
 
 
 def clear_update_history_dict():
-    global update_history_dict
     update_history_dict[chat_id] = ""
 
 
@@ -454,7 +451,6 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    global update_history_dict, document_retriever
     if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
@@ -652,7 +648,6 @@ def history_modifier(history):
     :param history:
     :return:
     """
-    global update_history_dict
     if update_history_dict[chat_id]:
         # Replace the last reply in the internal history (which does not contain any search results) with the
         # concatenation of all recursive searches and their model completions, which *do* contain the full results.
