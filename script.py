@@ -33,7 +33,7 @@ params = {
     "search command regex": "",
     "default search command regex": r"Search_web\(\"(.*)\"\)",
     "open url command regex": "",
-    "default open url command regex": r"Open_url\(\"(.*)\"\)",
+    "default open url command regex": r"Download_webpage\(\"(.*)\"\)",
     "display search results in chat": True,
     "display extracted URL content in chat": True,
     "searxng url": "",
@@ -245,7 +245,7 @@ def ui():
             search_command_regex_error_label = gr.HTML("", visible=False)
 
         with gr.Column():
-            open_url_command_regex = gr.Textbox(label="Open URL command regex string",
+            open_url_command_regex = gr.Textbox(label="Download webpage command regex string",
                                                 placeholder=params["default open url command regex"],
                                                 value=lambda: params["open url command regex"])
             open_url_command_regex_error_label = gr.HTML("", visible=False)
