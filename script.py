@@ -563,7 +563,9 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
                 reply += webpage_content
             reply += "```\n"
             if display_webpage_content:
-                yield reply
+                yield reply + "*Is typing...*"
+            else:
+                yield original_model_reply + "\n*Is typing...*"
             break
         yield reply
 
