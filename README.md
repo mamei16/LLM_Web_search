@@ -93,10 +93,10 @@ different models:
 [Ss]earch_web\((?:["'])(.*)(?:["'])\)
 ```
 ### Reading web pages
-Experimental support exists for extracting the full text content from a webpage. The default regex to use this
+Basic support exists for extracting the full text content from a webpage. The default regex to use this
 functionality is:
 ```regexp
-Open_url\("(.*)"\)
+Download_webpage\("(.*)"\)
 ```
 **Note**: The full content of a web page is likely to exceed the maximum context length of your average local LLM.
 ## Search backends
