@@ -79,10 +79,3 @@ class NerChunker(TextSplitter):
             separator_indices = [offset_tup_chunk[i][1] for i in separator_token_indices]
             separator_idx_lists.extend(separator_indices)
         yield from split_into_semantic_chunks(text, separator_idx_lists)
-
-    def split_text_old(self, text: str) -> List[str]:
-        text_chunks, token_chunks, _ = split_text_into_even_chunks(self.tokenizer, text)
-        with torch.no_grad():
-            outputs = self.pipe(text_chunks)
-        for text_chunk, output in zip(text_chunks, outputs):
-            yield from split_into_semantic_chunks(text_chunk, output)
