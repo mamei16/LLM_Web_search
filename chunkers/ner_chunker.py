@@ -62,21 +62,22 @@ class NerChunker(TextSplitter):
     def split_text(self, text: str) -> List[str]:
         token_chunks, offset_tup_chunks = split_text_into_even_chunks(self.tokenizer, text)
         separator_idx_lists = []
-        with torch.no_grad():
-            for token_chunk, offset_tup_chunk in zip(token_chunks, offset_tup_chunks):
-                output = self.model(torch.tensor([token_chunk]).to("cuda"))
-                logits = output.logits.cpu().numpy()
-                maxes = np.max(logits, axis=-1, keepdims=True)
-                shifted_exp = np.exp(logits - maxes)
-                scores = shifted_exp / shifted_exp.sum(axis=-1, keepdims=True)
-                token_classes = scores.argmax(axis=-1)
-                # Find first occasion of each positive class (separator) in token class sequence
-                separator_token_indices, = ((token_classes[0, :-1] - token_classes[0, 1:]) > 0).nonzero()
 
-                # Consider using  [offset_tup_chunk[i][1]+1 for i in separator_token_indices]
-                # Since it seems that there are several instances where a dot or semicolon is put into the "next" chunk
-                separator_indices = [offset_tup_chunk[i][1] for i in separator_token_indices]
-                separator_idx_lists.extend(separator_indices)
+        for token_chunk, offset_tup_chunk in zip(token_chunks, offset_tup_chunks):
+            with torch.no_grad():
+                output = self.model(torch.tensor([token_chunk]).to("cuda"))
+            logits = output.logits.cpu().numpy()
+            maxes = np.max(logits, axis=-1, keepdims=True)
+            shifted_exp = np.exp(logits - maxes)
+            scores = shifted_exp / shifted_exp.sum(axis=-1, keepdims=True)
+            token_classes = scores.argmax(axis=-1)
+            # Find first occasion of each positive class (separator) in token class sequence
+            separator_token_indices, = ((token_classes[0, :-1] - token_classes[0, 1:]) > 0).nonzero()
+
+            # Consider using  [offset_tup_chunk[i][1]+1 for i in separator_token_indices]
+            # Since it seems that there are several instances where a dot or semicolon is put into the "next" chunk
+            separator_indices = [offset_tup_chunk[i][1] for i in separator_token_indices]
+            separator_idx_lists.extend(separator_indices)
         yield from split_into_semantic_chunks(text, separator_idx_lists)
 
     def split_text_old(self, text: str) -> List[str]:
