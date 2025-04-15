@@ -19,6 +19,7 @@ try:
     from .retrievers.splade_retriever import SpladeRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from .chunkers.ner_chunker import NerChunker
     from .utils import Document, MySentenceTransformer
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
@@ -26,6 +27,7 @@ except ImportError:
     from retrievers.splade_retriever import SpladeRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from chunkers.ner_chunker import NerChunker
     from utils import Document, MySentenceTransformer
 
 
@@ -35,6 +37,7 @@ class DocumentRetriever:
                  ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10):
+        self.model_cache_dir = model_cache_dir
         self.device = device
         self.embedding_model = MySentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
                                                      device=device,
@@ -87,9 +90,10 @@ class DocumentRetriever:
 
     def retrieve_from_webpages(self, query: str, url_list: list[str]) -> list[Document]:
         if self.chunking_method == "semantic":
-            text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
-                                                   breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
-                                                   max_chunk_size=self.chunk_size)
+            #text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
+            #                                       breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
+            #                                       max_chunk_size=self.chunk_size)
+            text_splitter = NerChunker(device=self.device, model_cache_dir=self.model_cache_dir)
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
