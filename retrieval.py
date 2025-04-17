@@ -193,8 +193,14 @@ def download_html(url: str) -> bytes:
 def html_to_plaintext_doc(html_text: str or bytes, url: str) -> Document:
     with warnings.catch_warnings(action="ignore"):
         soup = BeautifulSoup(html_text, features="lxml")
-    for script in soup(["script", "style"]):
-        script.extract()
+
+    # Remove unwanted elements like scripts, styles, and common menu-related tags
+    for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+        tag.extract()
+
+    exclude_str_pats = re.compile("menu|nav|bar")
+    for tag in soup.find_all(attrs={"id": lambda x: x and exclude_str_pats.search(x.lower())}):
+        tag.extract()
 
     strings = '\n'.join([s.strip() for s in soup.stripped_strings])
     webpage_document = Document(page_content=strings, metadata={"source": url})
