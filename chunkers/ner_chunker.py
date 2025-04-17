@@ -27,15 +27,15 @@ def split_into_semantic_chunks(text, separator_indices: List[int]):
 
     for idx in separator_indices:
         chunk = text[start_index:idx]
-        yield chunk.strip()
+        yield chunk.lstrip(".:;").strip()
         start_index = idx
 
     if start_index < len(text):
-        yield text[start_index:].strip()
+        yield text[start_index:].lstrip(".:;").strip()
 
 
 class NerChunker(TextSplitter):
-    def __init__(self, model_name="mirth/chonky_distilbert_uncased_1", device="cpu", model_cache_dir: str = None):
+    def __init__(self, model_name="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None):
         super().__init__()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=model_cache_dir)
 
@@ -74,8 +74,6 @@ class NerChunker(TextSplitter):
             # Find first occasion of each positive class (separator) in token class sequence
             separator_token_indices, = ((token_classes[0, :-1] - token_classes[0, 1:]) > 0).nonzero()
 
-            # Consider using  [offset_tup_chunk[i][1]+1 for i in separator_token_indices]
-            # Since it seems that there are several instances where a dot or semicolon is put into the "next" chunk
             separator_indices = [offset_tup_chunk[i][1] for i in separator_token_indices]
             separator_idx_lists.extend(separator_indices)
         yield from split_into_semantic_chunks(text, separator_idx_lists)
