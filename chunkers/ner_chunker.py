@@ -2,7 +2,7 @@ from typing import List
 
 import torch
 import numpy as np
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+from transformers import AutoTokenizer, AutoModelForTokenClassification
 try:
     from ..chunkers.base_chunker import TextSplitter
 except:
