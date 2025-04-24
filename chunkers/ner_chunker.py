@@ -96,7 +96,7 @@ class NerChunker(TextSplitter):
 
         batch_size = 4
         for input_id_chunk, token_chunk in zip(split_into_chunks(input_ids, batch_size),
-                                                 split_into_chunks(tokens, batch_size)):
+                                               split_into_chunks(tokens, batch_size)):
             with torch.no_grad():
                 output = self.model(torch.tensor(input_id_chunk).to("cuda"))
 
@@ -117,20 +117,22 @@ class NerChunker(TextSplitter):
         separator_indices = []
         for i in range(len(sorted_separator_tokens)-1):
             current_token = sorted_separator_tokens[i]
+            if current_token.end == 0:
+                continue
             next_sep_token = sorted_separator_tokens[i+1]
+            next_token = flat_tokens[current_token.index+1]
 
-            while current_token.end == flat_tokens[current_token.index+1].start:
-                # TODO: Maybe avoid crossing certain symbols here
-                #  like dots (check that a dot is not followed by str.isalpha()), or newlines(?)
-                current_token = flat_tokens[current_token.index+1]
+            while current_token.end == next_token.start:
+                current_token = next_token
+                next_token = flat_tokens[current_token.index+1]
 
-            if ((current_token.end == 0) or
-                (current_token.start + current_token.length) > next_sep_token.start or
+            if ((current_token.start + current_token.length) > next_sep_token.start or
                 ((next_sep_token.end - current_token.end) <= 1)):
                 continue
 
             separator_indices.append(current_token.end)
 
-        separator_indices.append(sorted_separator_tokens[-1].end)
+        if sorted_separator_tokens:
+            separator_indices.append(sorted_separator_tokens[-1].end)
 
         yield from split_into_semantic_chunks(text, separator_indices)
