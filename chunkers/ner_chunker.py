@@ -12,7 +12,7 @@ except:
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
 
 
-def split_into_chunks(lst, n):
+def batchify(lst, batch_size):
     last_item_shorter = False
     if len(lst[-1]) < len(lst[0]):
         last_item_shorter = True
@@ -20,8 +20,8 @@ def split_into_chunks(lst, n):
     else:
         max_index = len(lst)
 
-    for i in range(0, max_index, n):
-        yield lst[i : min(i + n, max_index)]
+    for i in range(0, max_index, batch_size):
+        yield lst[i : min(i + batch_size, max_index)]
 
     if last_item_shorter:
         yield lst[-1:]
@@ -99,10 +99,10 @@ class TokenClassificationChunker(TextSplitter):
         all_separator_tokens = []
 
         batch_size = 4
-        for input_id_chunk, token_chunk in zip(split_into_chunks(input_ids, batch_size),
-                                               split_into_chunks(tokens, batch_size)):
+        for input_id_batch, token_batch in zip(batchify(input_ids, batch_size),
+                                               batchify(tokens, batch_size)):
             with torch.no_grad():
-                output = self.model(torch.tensor(input_id_chunk).to("cuda"))
+                output = self.model(torch.tensor(input_id_batch).to("cuda"))
 
             logits = output.logits.cpu().numpy()
             maxes = np.max(logits, axis=-1, keepdims=True)
@@ -112,7 +112,7 @@ class TokenClassificationChunker(TextSplitter):
             # Find last index of each sequence of ones in token class sequence
             separator_token_idx_tup = ((token_classes[:, :-1] - token_classes[:, 1:]) > 0).nonzero()
 
-            separator_tokens = [token_chunk[i][j] for i, j in zip(*separator_token_idx_tup)]
+            separator_tokens = [token_batch[i][j] for i, j in zip(*separator_token_idx_tup)]
             all_separator_tokens.extend(separator_tokens)
 
         flat_tokens = [token for window in tokens for token in window]
