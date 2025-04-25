@@ -30,6 +30,7 @@ and the results are appended to the model's output.
   * [Chunking Methods](#chunking-methods)
     + [Character-based Chunking](#character-based-chunking)
     + [Semantic Chunking](#semantic-chunking)
+    + [Token Classification based Chunking](#token-classification-based-chunking)
   * [Recommended models](#recommended-models)
 
 ## Installation
@@ -128,7 +129,7 @@ For the best possible search results, also enable semantic chunking and use SPLA
 ## Keyword retrievers
 ### Okapi BM25
 This extension comes out of the box with 
-[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) enabled, which is widely used and very popuplar
+[Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) enabled, which is widely used and very popular
 for keyword based document retrieval. It runs on the CPU and,
 for the purpose of this extension, it is fast.  
 ### SPLADE
@@ -153,7 +154,13 @@ Naively partitions a website's text into fixed sized chunks without any regard f
 ### Semantic Chunking
 
 Tries to partition a website's text into chunks based on semantics. If two consecutive sentences have very different embeddings (based on the cosine distance between their embeddings), a new chunk will be started. How different two consecutive sentences have to be for them to end up in different chunks can be tuned using the ` sentence split threshold` parameter in the UI.  
-For natural language, this method generally produces much better results than character-based chunking. However, it is noticable slower, even when using the GPU.
+For natural language, this method generally produces much better results than character-based chunking. However, it is noticeably slower, even when using the GPU.
+
+### Token Classification based Chunking
+
+This chunking method employs a fine-tune of the DistilBERT transformer model, which has been trained to classify tokens (see [chonky](https://github.com/mirth/chonky)). If a token is classified as the positive class, a new paragraph (or a new chunk) is meant to be started after the token.
+ 
+While semantic chunking only compares pairs of consecutive sentences when deciding on where to start a new chunk, the token classification model can utilize a much longer context. However, the need to process this context means that this chunking method is slower than semantic chunking.
 
 ## Recommended models
 If you (like me) have ≤ 12 GB VRAM, I recommend using one of:
