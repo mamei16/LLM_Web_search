@@ -6,8 +6,10 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 try:
     from ..chunkers.base_chunker import TextSplitter
+    from ..chunkers.character_chunker import RecursiveCharacterTextSplitter
 except:
     from chunkers.base_chunker import TextSplitter
+    from chunkers.character_chunker import RecursiveCharacterTextSplitter
 
 
 def split_into_chunks(lst, n):
@@ -25,26 +27,6 @@ def split_into_chunks(lst, n):
         yield lst[-1:]
 
 
-def split_text_into_even_chunks(tokenizer, text):
-    ids_plus = tokenizer(text, truncation=False, add_special_tokens=True, return_offsets_mapping=True)
-    token_offset_tups = ids_plus["offset_mapping"]
-    offset_tup_chunks = list(split_into_chunks(token_offset_tups, n=tokenizer.model_max_length))
-    token_chunks = list(split_into_chunks(ids_plus["input_ids"], n=tokenizer.model_max_length))
-    return token_chunks, offset_tup_chunks
-
-
-def split_into_semantic_chunks(text, separator_indices: List[int]):
-    start_index = 0
-
-    for idx in separator_indices:
-        chunk = text[start_index:idx]
-        yield chunk.strip()
-        start_index = idx
-
-    if start_index < len(text):
-        yield text[start_index:].strip()
-
-
 @dataclass
 class Token:
     index: int
@@ -54,11 +36,13 @@ class Token:
     decoded_str: str  #TODO: for debugging, remove
 
 
-class NerChunker(TextSplitter):
-    def __init__(self, model_name="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None):
+class TokenClassificationChunker(TextSplitter):
+    def __init__(self, model_name="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None,
+                 max_chunk_size: int = 99999):
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=model_cache_dir)
-
+        self.max_chunk_size = max_chunk_size
+        self.character_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_size, chunk_overlap=10,
+                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
         id2label = {
             0: "O",
             1: "separator",
@@ -67,7 +51,7 @@ class NerChunker(TextSplitter):
             "O": 0,
             "separator": 1,
         }
-
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=model_cache_dir)
         self.model = AutoModelForTokenClassification.from_pretrained(
             model_name,
             num_labels=2,
@@ -78,6 +62,20 @@ class NerChunker(TextSplitter):
         )
         self.model.eval()
         self.model.to(device)
+
+    def split_into_semantic_chunks(self, text, separator_indices: List[int]):
+        start_index = 0
+
+        for idx in separator_indices:
+            chunk = text[start_index:idx]
+            if len(chunk) > self.max_chunk_size:
+                yield from self.character_splitter.split_text(chunk)
+            else:
+                yield chunk.strip()
+            start_index = idx
+
+        if start_index < len(text):
+            yield text[start_index:].strip()
 
     def split_text(self, text: str) -> List[str]:
         max_seq_len = self.tokenizer.model_max_length
@@ -135,4 +133,4 @@ class NerChunker(TextSplitter):
         if sorted_separator_tokens:
             separator_indices.append(sorted_separator_tokens[-1].end)
 
-        yield from split_into_semantic_chunks(text, separator_indices)
+        yield from self.split_into_semantic_chunks(text, separator_indices)
