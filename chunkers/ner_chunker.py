@@ -119,23 +119,25 @@ class TokenClassificationChunker(TextSplitter):
         sorted_separator_tokens = sorted(all_separator_tokens, key=lambda x: x.start)
         separator_indices = []
         for i in range(len(sorted_separator_tokens)-1):
-            current_token = sorted_separator_tokens[i]
-            if current_token.end == 0:
+            current_sep_token = sorted_separator_tokens[i]
+            if current_sep_token.end == 0:
                 continue
             next_sep_token = sorted_separator_tokens[i+1]
-            next_token = flat_tokens[current_token.index+1]
+            # next_token is the token succeeding current_sep_token in the original text
+            next_token = flat_tokens[current_sep_token.index+1]
 
-            while (current_token.end == next_token.start and
-                   (not self.is_modernbert or (current_token.decoded_str != '\n'
+            # If current separator token is part of a bigger contiguous token, move to the end of the bigger token
+            while (current_sep_token.end == next_token.start and
+                   (not self.is_modernbert or (current_sep_token.decoded_str != '\n'
                                                and not next_token.decoded_str.startswith(' ')))):
-                current_token = next_token
-                next_token = flat_tokens[current_token.index+1]
+                current_sep_token = next_token
+                next_token = flat_tokens[current_sep_token.index+1]
 
-            if ((current_token.start + current_token.length) > next_sep_token.start or
-                ((next_sep_token.end - current_token.end) <= 1)):
+            if ((current_sep_token.start + current_sep_token.length) > next_sep_token.start or
+                ((next_sep_token.end - current_sep_token.end) <= 1)):
                 continue
 
-            separator_indices.append(current_token.end)
+            separator_indices.append(current_sep_token.end)
 
         if sorted_separator_tokens:
             separator_indices.append(sorted_separator_tokens[-1].end)
