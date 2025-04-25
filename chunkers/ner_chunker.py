@@ -40,6 +40,7 @@ class TokenClassificationChunker(TextSplitter):
     def __init__(self, model_id="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None,
                  max_chunk_size: int = 99999):
         super().__init__()
+        self.device = device
         self.is_modernbert = model_id == "mirth/chonky_modernbert_base_1"
         self.max_chunk_size = max_chunk_size
         self.character_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_size, chunk_overlap=10,
@@ -73,11 +74,11 @@ class TokenClassificationChunker(TextSplitter):
         start_index = 0
 
         for idx in separator_indices:
-            chunk = text[start_index:idx]
+            chunk = text[start_index:idx].strip()
             if len(chunk) > self.max_chunk_size:
                 yield from self.character_splitter.split_text(chunk)
             else:
-                yield chunk.strip()
+                yield chunk
             start_index = idx
 
         if start_index < len(text):
@@ -102,7 +103,7 @@ class TokenClassificationChunker(TextSplitter):
         for input_id_batch, token_batch in zip(batchify(input_ids, batch_size),
                                                batchify(tokens, batch_size)):
             with torch.no_grad():
-                output = self.model(torch.tensor(input_id_batch).to("cuda"))
+                output = self.model(torch.tensor(input_id_batch).to(self.device))
 
             logits = output.logits.cpu().numpy()
             maxes = np.max(logits, axis=-1, keepdims=True)
