@@ -11,6 +11,7 @@ import requests
 import torch
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
+from transformers.utils.hub import cached_file
 import optimum.bettertransformer.transformation
 
 try:
@@ -19,6 +20,7 @@ try:
     from .retrievers.splade_retriever import SpladeRetriever
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from .chunkers.ner_chunker import TokenClassificationChunker
     from .utils import Document, MySentenceTransformer
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
@@ -26,6 +28,7 @@ except ImportError:
     from retrievers.splade_retriever import SpladeRetriever
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
+    from chunkers.ner_chunker import TokenClassificationChunker
     from utils import Document, MySentenceTransformer
 
 
@@ -34,7 +37,9 @@ class DocumentRetriever:
     def __init__(self, device="cuda", num_results: int = 5, similarity_threshold: float = 0.5, chunk_size: int = 500,
                  ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
                  model_cache_dir: str = None, chunking_method: str = "character-based",
-                 chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10):
+                 chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10,
+                 token_classification_model_id : str = "mirth/chonky_distilbert_base_uncased_1"):
+        self.model_cache_dir = model_cache_dir
         self.device = device
         self.embedding_model = MySentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
                                                      device=device,
@@ -62,6 +67,13 @@ class DocumentRetriever:
             optimum_logger.setLevel(original_log_level)
             self.splade_batch_size = splade_batch_size
 
+        self.token_classification_chunker = None
+        if chunking_method == "token-classifier":
+            self.token_classification_chunker = TokenClassificationChunker(model_id=token_classification_model_id,
+                                                                           device=self.device,
+                                                                           model_cache_dir=self.model_cache_dir,
+                                                                           max_chunk_size=chunk_size)
+
         self.spaces_regex = re.compile(r" {3,}")
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
@@ -71,6 +83,7 @@ class DocumentRetriever:
         self.ensemble_weighting = ensemble_weighting
         self.keyword_retriever = keyword_retriever
         self.client_timeout = client_timeout
+        self.token_classification_model_id = token_classification_model_id
 
     def preprocess_text(self, text: str) -> str:
         text = text.replace("\n", " \n")
@@ -90,9 +103,22 @@ class DocumentRetriever:
             text_splitter = BoundedSemanticChunker(self.embedding_model, breakpoint_threshold_type="percentile",
                                                    breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
                                                    max_chunk_size=self.chunk_size)
+        elif self.chunking_method == "token-classifier":
+            try:
+                cached_file(self.token_classification_model_id, "config.json", local_files_only=True,
+                            cache_dir=self.model_cache_dir)
+            except OSError:
+                yield "Downloading token classification model..."
+            if not self.token_classification_chunker:
+                self.token_classification_chunker = TokenClassificationChunker(model_id=self.token_classification_model_id,
+                                                                               device=self.device,
+                                                                               model_cache_dir=self.model_cache_dir,
+                                                                               max_chunk_size=self.chunk_size)
+            text_splitter = self.token_classification_chunker
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
+
         yield "Downloading and chunking webpages..."
         split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
 

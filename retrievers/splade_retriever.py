@@ -41,7 +41,7 @@ class SpladeRetriever:
     def compute_document_vectors(self, texts: List[str], batch_size: int) -> Tuple[List[List[int]], List[List[float]]]:
         indices = []
         values = []
-        tokenized_texts = self.splade_doc_tokenizer(texts, truncation=False, padding=False,
+        tokenized_texts = self.splade_doc_tokenizer(texts, truncation=True, padding=False,
                                                     return_tensors="np")["input_ids"]
         batchifyer = SimilarLengthsBatchifyer(batch_size, tokenized_texts)
         texts = np.array(texts)

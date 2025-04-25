@@ -50,7 +50,8 @@ params = {
     "chunker breakpoint_threshold_amount": 30,
     "simple search": False,
     "client timeout": 10,
-    "show force search checkbox": True
+    "show force search checkbox": True,
+    "token classification model id": "mirth/chonky_distilbert_base_uncased_1"
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -94,6 +95,7 @@ def toggle_extension(_enable: bool):
     if _enable:
         document_retriever = DocumentRetriever(device="cpu" if params["cpu only"] else "cuda",
                                                keyword_retriever=params["keyword retriever"],
+                                               chunking_method=params["chunking method"],
                                                model_cache_dir=os.path.join(extension_path, "hf_models"))
         embedding_model = document_retriever.embedding_model
         embedding_model.to(embedding_model._target_device)
@@ -306,7 +308,8 @@ def ui():
                                           visible=not params["simple search"])
         with gr.Row():
             chunker = gr.Radio([("Character-based", "character-based"),
-                                ("Semantic", "semantic")], label="Chunking method",
+                                ("Semantic", "semantic"), ("Token Classifier", "token-classifier")],
+                               label="Chunking method",
                                value=lambda: params["chunking method"],
                                visible=not params["simple search"])
             chunker_breakpoint_threshold_amount = gr.Slider(minimum=1, maximum=100, step=1,
@@ -476,6 +479,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     document_retriever.chunking_method = params["chunking method"]
     document_retriever.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
     document_retriever.client_timeout = params["client timeout"]
+    document_retriever.token_classification_model_id = params["token classification model id"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
