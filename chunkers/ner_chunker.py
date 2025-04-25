@@ -33,13 +33,14 @@ class Token:
     start: int
     end: int
     length: int
-    decoded_str: str  #TODO: for debugging, remove
+    decoded_str: str
 
 
 class TokenClassificationChunker(TextSplitter):
-    def __init__(self, model_name="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None,
+    def __init__(self, model_id="mirth/chonky_distilbert_base_uncased_1", device="cpu", model_cache_dir: str = None,
                  max_chunk_size: int = 99999):
         super().__init__()
+        self.is_modernbert = model_id == "mirth/chonky_modernbert_base_1"
         self.max_chunk_size = max_chunk_size
         self.character_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_size, chunk_overlap=10,
                                                                  separators=["\n\n", "\n", ".", ", ", " ", ""])
@@ -51,9 +52,14 @@ class TokenClassificationChunker(TextSplitter):
             "O": 0,
             "separator": 1,
         }
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=model_cache_dir)
+
+        if self.is_modernbert:
+            tokenizer_kwargs = {"model_max_length": 1024}
+        else:
+            tokenizer_kwargs = {}
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=model_cache_dir, **tokenizer_kwargs)
         self.model = AutoModelForTokenClassification.from_pretrained(
-            model_name,
+            model_id,
             num_labels=2,
             id2label=id2label,
             label2id=label2id,
@@ -109,7 +115,6 @@ class TokenClassificationChunker(TextSplitter):
             separator_tokens = [token_chunk[i][j] for i, j in zip(*separator_token_idx_tup)]
             all_separator_tokens.extend(separator_tokens)
 
-
         flat_tokens = [token for window in tokens for token in window]
         sorted_separator_tokens = sorted(all_separator_tokens, key=lambda x: x.start)
         separator_indices = []
@@ -120,7 +125,8 @@ class TokenClassificationChunker(TextSplitter):
             next_sep_token = sorted_separator_tokens[i+1]
             next_token = flat_tokens[current_token.index+1]
 
-            while current_token.end == next_token.start:
+            while (current_token.end == next_token.start and
+                   (not self.is_modernbert or not next_token.decoded_str.startswith(" "))):
                 current_token = next_token
                 next_token = flat_tokens[current_token.index+1]
 
