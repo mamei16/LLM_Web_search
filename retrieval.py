@@ -11,6 +11,7 @@ import requests
 import torch
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
+from transformers.utils.hub import cached_file
 import optimum.bettertransformer.transformation
 
 try:
@@ -37,7 +38,7 @@ class DocumentRetriever:
                  ensemble_weighting: float = 0.5, splade_batch_size: int = 2, keyword_retriever: str = "bm25",
                  model_cache_dir: str = None, chunking_method: str = "character-based",
                  chunker_breakpoint_threshold_amount: int = 10, client_timeout: int = 10,
-                 token_classification_model_id : str = None):
+                 token_classification_model_id : str = "mirth/chonky_distilbert_base_uncased_1"):
         self.model_cache_dir = model_cache_dir
         self.device = device
         self.embedding_model = MySentenceTransformer("all-MiniLM-L6-v2", cache_folder=model_cache_dir,
@@ -96,6 +97,11 @@ class DocumentRetriever:
                                                    breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
                                                    max_chunk_size=self.chunk_size)
         elif self.chunking_method == "token-classifier":
+            try:
+                cached_file(self.token_classification_model_id, "config.json", local_files_only=True,
+                            cache_dir=self.model_cache_dir)
+            except OSError:
+                yield "Downloading token classification model..."
             text_splitter = TokenClassificationChunker(model_id=self.token_classification_model_id,
                                                        device=self.device, model_cache_dir=self.model_cache_dir,
                                                        max_chunk_size=self.chunk_size)
