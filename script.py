@@ -50,7 +50,8 @@ params = {
     "chunker breakpoint_threshold_amount": 30,
     "simple search": False,
     "client timeout": 10,
-    "show force search checkbox": True
+    "show force search checkbox": True,
+    "token classification model id": "mirth/chonky_distilbert_base_uncased_1"
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -477,6 +478,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     document_retriever.chunking_method = params["chunking method"]
     document_retriever.chunker_breakpoint_threshold_amount = params["chunker breakpoint_threshold_amount"]
     document_retriever.client_timeout = params["client timeout"]
+    document_retriever.token_classification_model_id = params["token classification model id"]
 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
