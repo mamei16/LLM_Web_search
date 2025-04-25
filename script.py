@@ -306,7 +306,8 @@ def ui():
                                           visible=not params["simple search"])
         with gr.Row():
             chunker = gr.Radio([("Character-based", "character-based"),
-                                ("Semantic", "semantic")], label="Chunking method",
+                                ("Semantic", "semantic"), ("Token Classifier", "token-classifier")],
+                               label="Chunking method",
                                value=lambda: params["chunking method"],
                                visible=not params["simple search"])
             chunker_breakpoint_threshold_amount = gr.Slider(minimum=1, maximum=100, step=1,
@@ -451,7 +452,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     Overrides the main text generation function.
     :return:
     """
-    if shared.model.__class__.__name__ in ['LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
+    if shared.model.__class__.__name__ in ['LlamaServer', 'LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
                                            'CtransformersModel']:
         generate_func = generate_reply_custom
     else:
