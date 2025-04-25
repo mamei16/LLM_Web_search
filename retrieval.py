@@ -67,6 +67,13 @@ class DocumentRetriever:
             optimum_logger.setLevel(original_log_level)
             self.splade_batch_size = splade_batch_size
 
+        self.token_classification_chunker = None
+        if chunking_method == "token-classifier":
+            self.token_classification_chunker = TokenClassificationChunker(model_id=token_classification_model_id,
+                                                                           device=self.device,
+                                                                           model_cache_dir=self.model_cache_dir,
+                                                                           max_chunk_size=chunk_size)
+
         self.spaces_regex = re.compile(r" {3,}")
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
@@ -102,12 +109,16 @@ class DocumentRetriever:
                             cache_dir=self.model_cache_dir)
             except OSError:
                 yield "Downloading token classification model..."
-            text_splitter = TokenClassificationChunker(model_id=self.token_classification_model_id,
-                                                       device=self.device, model_cache_dir=self.model_cache_dir,
-                                                       max_chunk_size=self.chunk_size)
+            if not self.token_classification_chunker:
+                self.token_classification_chunker = TokenClassificationChunker(model_id=self.token_classification_model_id,
+                                                                               device=self.device,
+                                                                               model_cache_dir=self.model_cache_dir,
+                                                                               max_chunk_size=self.chunk_size)
+            text_splitter = self.token_classification_chunker
         else:
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=self.chunk_size, chunk_overlap=10,
                                                                 separators=["\n\n", "\n", ".", ", ", " ", ""])
+
         yield "Downloading and chunking webpages..."
         split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
 
