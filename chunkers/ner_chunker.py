@@ -126,7 +126,8 @@ class TokenClassificationChunker(TextSplitter):
             next_token = flat_tokens[current_token.index+1]
 
             while (current_token.end == next_token.start and
-                   (not self.is_modernbert or not next_token.decoded_str.startswith(" "))):
+                   (not self.is_modernbert or (current_token.decoded_str != '\n'
+                                               and not next_token.decoded_str.startswith(' ')))):
                 current_token = next_token
                 next_token = flat_tokens[current_token.index+1]
 
