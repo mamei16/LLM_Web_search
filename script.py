@@ -449,7 +449,7 @@ def get_generation_prompt(state, impersonate=False):
         return chat.get_generation_prompt(chat_renderer, impersonate, False)
 
 
-def custom_generate_reply(question, original_question, seed, state, stopping_strings, is_chat, recursive_call=False):
+def custom_generate_reply(question, original_question, state, stopping_strings, is_chat, recursive_call=False):
     """
     Overrides the main text generation function.
     :return:
@@ -461,7 +461,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         generate_func = generate_reply_HF
 
     if not params['enable']:
-        for reply in generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat):
+        for reply in generate_func(question, original_question, state, stopping_strings, is_chat=is_chat):
             yield reply
         return
 
@@ -498,7 +498,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
     if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
 
-    model_reply_gen = generate_func(question, original_question, seed, state, stopping_strings, is_chat=is_chat)
+    model_reply_gen = generate_func(question, original_question, state, stopping_strings, is_chat=is_chat)
     reply = None
     for reply in model_reply_gen:
 
@@ -579,7 +579,7 @@ def custom_generate_reply(question, original_question, seed, state, stopping_str
         start_turn_str, end_turn_str = get_generation_prompt(state)
         new_question = question + reply + end_turn_str + start_turn_str
         new_reply = ""
-        for new_reply in custom_generate_reply(new_question, new_question, seed, state,
+        for new_reply in custom_generate_reply(new_question, new_question, state,
                                                stopping_strings, is_chat=is_chat, recursive_call=True):
             if display_results:
                 yield f"{reply}{new_reply}"
