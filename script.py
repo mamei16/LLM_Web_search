@@ -51,7 +51,8 @@ params = {
     "simple search": False,
     "client timeout": 10,
     "show force search checkbox": True,
-    "token classification model id": "mirth/chonky_distilbert_base_uncased_1"
+    "token classification model id": "mirth/chonky_distilbert_base_uncased_1",
+    "think after searching": True
 }
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
@@ -337,6 +338,8 @@ def ui():
                                      " be split into, in characters", minimum=2, maximum=10000,
                                value=lambda: params["chunk size"], precision=0,
                                visible=not params["simple search"])
+        think_after_search = gr.Checkbox(label="Enable thinking after searching",
+                                         value=lambda: params["think after searching"])
 
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
@@ -419,8 +422,10 @@ def ui():
     # Change font color and invert checkmark color of force search checkbox when dark mode is toggled
     shared.gradio['theme_state'].change(None, None, None, js=f"() => {{ {get_force_search_box_theme_js()}; toggleForceSearchDarkMode() }}")
 
+    think_after_search.change(lambda x: params.update({"think after searching": x}), think_after_search, None)
 
-def get_generation_prompt(state, impersonate=False):
+
+def get_generation_prompt(state, impersonate=False, enable_thinking=True):
     chat_template_str = state['chat_template_str']
     if state['mode'] != 'instruct':
         chat_template_str = chat.replace_character_names(chat_template_str, state['name1'], state['name2'])
@@ -444,9 +449,14 @@ def get_generation_prompt(state, impersonate=False):
         user_bio=chat.replace_character_names(state['user_bio'], state['name1'], state['name2']),
     )
     if state["mode"] == "instruct":
-        return chat.get_generation_prompt(instruct_renderer, impersonate, False)
+        start_turn_str, end_turn_str = chat.get_generation_prompt(instruct_renderer, impersonate, False)
     else:
-        return chat.get_generation_prompt(chat_renderer, impersonate, False)
+        start_turn_str, end_turn_str = chat.get_generation_prompt(chat_renderer, impersonate, False)
+
+    if not enable_thinking:
+        start_turn_str += chat.get_thinking_suppression_string(instruction_template)
+
+    return start_turn_str, end_turn_str
 
 
 def custom_generate_reply(question, original_question, state, stopping_strings, is_chat, recursive_call=False):
@@ -576,7 +586,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     if web_search or read_webpage:
         display_results = web_search and display_search_results or read_webpage and display_webpage_content
         # Add results to context and continue model output
-        start_turn_str, end_turn_str = get_generation_prompt(state)
+        start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
         new_question = question + reply + end_turn_str + start_turn_str
         new_reply = ""
         for new_reply in custom_generate_reply(new_question, new_question, state,
