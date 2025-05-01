@@ -168,3 +168,7 @@ If you (like me) have ≤ 12 GB VRAM, I recommend using one of:
 - [Gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it)
 - [Mistral-Nemo-Instruct-2407](https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407)
 - [Gemma-3-it](https://huggingface.co/google/gemma-3-12b-it)
+- [Qwen3](https://huggingface.co/collections/Qwen/qwen3-67dd247413f0e2e4f653967f)  
+ Since the Qwen3 family consists of reasoning models, some unique problems arise:  
+  1. It seems that Qwen3 models are harder to prompt to use the search command. I have uploaded the system prompt that has worked most reliably under the name "reasoning_enforce_search".
+  2. By ticking the checkbox "Enable thinking after searching" in the extension's settings, the model will resume thinking after each search. However, the main webUI only expects the model to think *once* at the start of the message, and so only the first thinking output will be put into a collapsible UI block. You can download a patch [here](https://gist.github.com/mamei16/bdcb994f93f7b3d2c389c04d32bc68d4) that fixes this. Download and extract it, then navigate to your `text-generation-webui` directory, put the patch file there and finally run `git apply ooba_multi_thinking.patch`
