@@ -1,8 +1,10 @@
-from typing import Dict, Literal
+from typing import Dict, Literal, List, Callable
 import warnings
 import math
 import copy
 from dataclasses import dataclass
+import re
+from collections import Counter
 
 from torch import Tensor
 import torch
@@ -369,3 +371,61 @@ class MyDDGS(DDGS):
             )
 
         return results
+
+
+def filter_similar_embeddings(
+    embedded_documents: List[List[float]], similarity_fn: Callable, threshold: float,
+    doc_rank_to_source_rank: dict
+) -> List[int]:
+    """Filter redundant documents based on the similarity of their embeddings."""
+    similarity = np.tril(similarity_fn(embedded_documents, embedded_documents), k=-1)
+    redundant = np.where(similarity > threshold)
+    redundant_stacked = np.column_stack(redundant)
+    redundant_sorted = np.argsort(similarity[redundant])[::-1]
+    included_idxs = set(range(len(embedded_documents)))
+    for first_idx, second_idx in redundant_stacked[redundant_sorted]:
+        if first_idx in included_idxs and second_idx in included_idxs:
+            first_source_rank = doc_rank_to_source_rank[first_idx]
+            second_source_rank = doc_rank_to_source_rank[second_idx]
+            if first_source_rank == second_source_rank:
+                # Tiebreaker: drop the second document of any highly similar pair.
+                included_idxs.remove(second_idx)
+            else:
+                # Drop the document whose source came later in the search engine results
+                index_to_drop = first_idx if first_source_rank < second_source_rank else second_idx
+                included_idxs.remove(index_to_drop)
+    return list(sorted(included_idxs))
+
+
+def bow_filter_similar_texts(texts: List[str], similarity_fn: Callable, threshold: float,
+                             doc_rank_to_source_rank: dict) -> List[int]:
+    """Filter redundant documents based on the similarity of their bag-of-words."""
+    punct_pat = re.compile("[\n.,?!:;]")
+    bow_dicts = [Counter(punct_pat.sub(" ", text).lower().split()) for text in texts]
+    vocab_dict = {}
+    for bow_dict in bow_dicts:
+        vocab_dict |= dict.fromkeys(bow_dict, 0)
+
+    # construct bag-of-words lists using the values of the union of the vocab dict and each BOW dict
+    bow_lists = []
+    for bow_dict in bow_dicts:
+        bow_lists.append(list((vocab_dict | bow_dict).values()))
+
+    bow_matrix = np.vstack(bow_lists)
+    similarity = np.tril(similarity_fn(bow_matrix, bow_matrix), k=-1)
+    redundant = np.where(similarity > threshold)
+    redundant_stacked = np.column_stack(redundant)
+    redundant_sorted = np.argsort(similarity[redundant])[::-1]
+    included_idxs = set(range(len(texts)))
+    for first_idx, second_idx in redundant_stacked[redundant_sorted]:
+        if first_idx in included_idxs and second_idx in included_idxs:
+            first_source_rank = doc_rank_to_source_rank[first_idx]
+            second_source_rank = doc_rank_to_source_rank[second_idx]
+            if first_source_rank == second_source_rank:
+                # Tiebreaker: drop the second document of any highly similar pair.
+                included_idxs.remove(second_idx)
+            else:
+                # Drop the document whose source came later in the search engine results
+                index_to_drop = first_idx if first_source_rank < second_source_rank else second_idx
+                included_idxs.remove(index_to_drop)
+    return list(sorted(included_idxs))

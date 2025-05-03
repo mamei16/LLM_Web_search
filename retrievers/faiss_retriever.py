@@ -18,6 +18,7 @@ class FaissRetriever:
         self.index = faiss.IndexFlatL2(embedding_model.get_sentence_embedding_dimension())
         self.document_embeddings = []
         self.documents = []
+        self.text_to_embedding = {}
 
     def add_documents(self, documents: List[Document]):
         if not documents:
@@ -25,6 +26,8 @@ class FaissRetriever:
         self.documents = documents
         self.document_embeddings = self.embedding_model.batch_encode([doc.page_content for doc in documents])
         self.index.add(self.document_embeddings)
+        self.text_to_embedding = {document.page_content: embedding
+                                  for document, embedding in zip(documents, self.document_embeddings)}
 
     def get_relevant_documents(self, query: str) -> List[Document]:
         if not self.documents:
@@ -35,31 +38,9 @@ class FaissRetriever:
         relevant_doc_embeddings = self.document_embeddings[result_indices]
         # dense_result_docs = [split_docs[i] for i in I[0]]
 
-        # Filter out redundant documents
-        included_idxs = filter_similar_embeddings(relevant_doc_embeddings, cosine_similarity,
-                                                  threshold=0.95)
-        relevant_doc_embeddings = relevant_doc_embeddings[included_idxs]
-
         # Filter out documents that aren't similar enough
         similarity = cosine_similarity([query_embedding], relevant_doc_embeddings)[0]
         similar_enough = np.where(similarity > self.similarity_threshold)[0]
-        included_idxs = [included_idxs[i] for i in similar_enough]
 
-        filtered_result_indices = result_indices[included_idxs]
+        filtered_result_indices = result_indices[similar_enough]
         return [self.documents[i] for i in filtered_result_indices]
-
-
-def filter_similar_embeddings(
-    embedded_documents: List[List[float]], similarity_fn: Callable, threshold: float
-) -> List[int]:
-    """Filter redundant documents based on the similarity of their embeddings."""
-    similarity = np.tril(similarity_fn(embedded_documents, embedded_documents), k=-1)
-    redundant = np.where(similarity > threshold)
-    redundant_stacked = np.column_stack(redundant)
-    redundant_sorted = np.argsort(similarity[redundant])[::-1]
-    included_idxs = set(range(len(embedded_documents)))
-    for first_idx, second_idx in redundant_stacked[redundant_sorted]:
-        if first_idx in included_idxs and second_idx in included_idxs:
-            # Default to dropping the second document of any highly similar pair.
-            included_idxs.remove(second_idx)
-    return list(sorted(included_idxs))

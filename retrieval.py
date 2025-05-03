@@ -21,7 +21,8 @@ try:
     from .chunkers.semantic_chunker import BoundedSemanticChunker
     from .chunkers.character_chunker import RecursiveCharacterTextSplitter
     from .chunkers.ner_chunker import TokenClassificationChunker
-    from .utils import Document, MySentenceTransformer
+    from .utils import (Document, MySentenceTransformer, cosine_similarity,
+                        filter_similar_embeddings, bow_filter_similar_texts)
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
@@ -29,7 +30,8 @@ except ImportError:
     from chunkers.semantic_chunker import BoundedSemanticChunker
     from chunkers.character_chunker import RecursiveCharacterTextSplitter
     from chunkers.ner_chunker import TokenClassificationChunker
-    from utils import Document, MySentenceTransformer
+    from utils import (Document, MySentenceTransformer, cosine_similarity,
+                       filter_similar_embeddings, bow_filter_similar_texts)
 
 
 class DocumentRetriever:
@@ -123,10 +125,13 @@ class DocumentRetriever:
         split_docs = asyncio.run(async_fetch_chunk_websites(url_list, text_splitter, self.client_timeout))
 
         yield "Retrieving relevant results..."
+        num_retrieval_results = max(self.num_results*2, 10)
+        text_to_dense_embedding = None
         if self.ensemble_weighting > 0:
-            faiss_retriever = FaissRetriever(self.embedding_model, num_results=self.num_results,
+            faiss_retriever = FaissRetriever(self.embedding_model, num_results=num_retrieval_results,
                                           similarity_threshold=self.similarity_threshold)
             faiss_retriever.add_documents(split_docs)
+            text_to_dense_embedding = faiss_retriever.text_to_embedding
             dense_result_docs = faiss_retriever.get_relevant_documents(query)
         else:
             dense_result_docs = []
@@ -137,7 +142,7 @@ class DocumentRetriever:
             if self.keyword_retriever == "bm25":
                 keyword_retriever = BM25Retriever.from_documents(split_docs,
                                                                  preprocess_func=self.preprocess_text)
-                keyword_retriever.k = self.num_results
+                keyword_retriever.k = num_retrieval_results
             elif self.keyword_retriever == "splade":
                 keyword_retriever = SpladeRetriever(
                     splade_doc_tokenizer=self.splade_doc_tokenizer,
@@ -146,7 +151,7 @@ class DocumentRetriever:
                     splade_query_model=self.splade_query_model,
                     device=self.device,
                     batch_size=self.splade_batch_size,
-                    k=self.num_results
+                    k=num_retrieval_results
                 )
                 keyword_retriever.add_documents(split_docs)
             else:
@@ -155,8 +160,22 @@ class DocumentRetriever:
         else:
             sparse_results_docs = []
 
-        return weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
-                                        weights=[self.ensemble_weighting, 1 - self.ensemble_weighting])[:self.num_results]
+        ranked_docs = weighted_reciprocal_rank([dense_result_docs, sparse_results_docs],
+                                               weights=[self.ensemble_weighting,
+                                                        1 - self.ensemble_weighting])
+
+        source_url_to_rank = {url: i + 1 for i, url in enumerate(url_list)}
+        doc_rank_to_source_rank = {i:source_url_to_rank[doc.metadata['source']] for i, doc in enumerate(ranked_docs)}
+
+        if text_to_dense_embedding:
+            ranked_doc_embeddings = [text_to_dense_embedding[doc.page_content] for doc in ranked_docs]
+            included_idxs = filter_similar_embeddings(ranked_doc_embeddings, cosine_similarity,
+                                                      0.95, doc_rank_to_source_rank)
+        else:
+            included_idxs = bow_filter_similar_texts([doc.page_content for doc in ranked_docs],
+                                                     cosine_similarity, 0.95, doc_rank_to_source_rank)
+
+        return [ranked_docs[i] for i in included_idxs[:self.num_results]]
 
 
 async def async_download_html(url: str, headers: Dict, timeout: int):
