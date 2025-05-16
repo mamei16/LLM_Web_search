@@ -36,21 +36,8 @@ and the results are appended to the model's output.
 ## Installation
 1. Go to the "Session" tab of the web UI and use "Install or update an extension" 
 to download the latest code for this extension.
-2. To install the extension's depencies you have two options:  
-   1. **The easy way:** Run the appropriate `update_wizard` script inside the text-generation-webui folder
-   and choose `Install/update extensions requirements`. This installs everything using `pip`,
-   which means using the unofficial `faiss-cpu` package. Therefore, it is not guaranteed to
-   work with your system (see [the official disclaimer](https://github.com/facebookresearch/faiss/wiki/Installing-Faiss#why-dont-you-support-installing-via-xxx-)).
-   2. **The safe way:** Manually update the conda environment in which you installed the dependencies of 
-   [oobabooga's text-generation-webui](https://github.com/oobabooga/text-generation-webui).
-   Open the subfolder `text-generation-webui/extensions/LLM_Web_search` in a terminal or conda shell.
-   If you used the one-click install method, run the command 
-   `conda env update -p <path_to_your_environment> --file environment.yml`,
-   where you need to replace `<path_to_your_environment>` with the path to the 
-   `/installer_files/env` subfolder within the text-generation-webui folder.
-   Otherwise, if you made your own environment, 
-   use `conda env update -n <name_of_your_environment> --file environment.yml`  
-     (NB: Solving the environment can take a while)
+2. Run the appropriate `update_wizard` script inside the text-generation-webui folder
+   and choose `Install/update extensions requirements`, then choose the name of this extension.
 3. Launch the Web UI by running the appropriate `start` script and enable the extension under the session tab.  
  Alternatively,
 you can also start the server directly using the following command (assuming you have activated your conda/virtual environment):  
