@@ -60,6 +60,7 @@ document_retriever = None
 update_history_dict = defaultdict(str)
 chat_id = None
 force_search = False
+GEN_LATENCY_THRESH = 1 / 1000
 
 
 def setup():
@@ -517,8 +518,8 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
 
         search_re_match = compiled_search_command_regex.search(reply)
         if search_re_match is not None:
-            model_reply_gen.close()
             yield reply
+            model_reply_gen.close()
             original_model_reply = reply
             web_search = True
             search_term = search_re_match.group(1)
@@ -540,7 +541,9 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                                                                    simple_search))
             try:
                 for status_message in search_generator:
+                    time.sleep(GEN_LATENCY_THRESH)
                     yield original_model_reply + f"\n*{status_message}*"
+                time.sleep(GEN_LATENCY_THRESH)
                 yield original_model_reply + "\n*Is typing...*"
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
@@ -554,13 +557,14 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                     reply += f"\nThe search tool did not return any results."
             reply += "```\n"
             if display_search_results:
+                time.sleep(GEN_LATENCY_THRESH)
                 yield reply
             break
 
         open_url_re_match = compiled_open_url_command_regex.search(reply)
         if open_url_re_match is not None:
-            model_reply_gen.close()
             yield reply
+            model_reply_gen.close()
             original_model_reply = reply
             read_webpage = True
             url = open_url_re_match.group(1)
