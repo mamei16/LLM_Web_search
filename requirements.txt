@@ -1,4 +1,4 @@
-faiss-cpu==1.10.0
+faiss-cpu==1.11.0
 duckduckgo_search==7.5.1
 beautifulsoup4==4.13.4
 unstructured==0.16.23
