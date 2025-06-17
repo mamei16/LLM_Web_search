@@ -60,7 +60,7 @@ document_retriever = None
 update_history_dict = defaultdict(str)
 chat_id = None
 force_search = False
-GEN_LATENCY_THRESH = 1 / 1000
+GEN_LATENCY_THRESH = 0.0015
 
 
 def setup():
