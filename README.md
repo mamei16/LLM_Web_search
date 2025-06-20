@@ -49,6 +49,20 @@ title "LLM Web Search" should be visible in the web UI.
 See https://github.com/oobabooga/text-generation-webui/wiki/07-%E2%80%90-Extensions for more
 information about extensions.
 
+### Updating DuckDuckGo Search Python Package
+
+By default, the `duckduckgo-search` python package is used to get results from DuckDuckGo. However, the `update_wizard` may downgrade `duckduckgo-search` to an outdated version again after installing the extension requirements. To avoid `202 Ratelimit` exceptions, you may want to update `duckduckgo-search` before using this extension, by using the following steps:
+1. Run the appropriate `cmd_` script inside the text-generation-webui folder
+2. Check the version listed in the [extension requirements](https://github.com/mamei16/LLM_Web_search/blob/main/requirements.txt#L2)
+3. Run the command:
+   
+```
+pip install --upgrade "duckduckgo_search==<version>"
+```
+\- Where you need to replace `<version>` with the version from step 2, for example 8.0.4  
+
+If you choose to use SearXNG as the search engine, you of course won't need to update `duckduckgo-search`.
+
 ## Usage
 
 Search queries are extracted from the model's output using a regular expression. This is made easier by prompting the model
