@@ -60,7 +60,7 @@ document_retriever = None
 update_history_dict = defaultdict(str)
 chat_id = None
 force_search = False
-GEN_LATENCY_THRESH = 0.0015
+GEN_LATENCY_THRESH = 0.002
 
 
 def setup():
@@ -542,9 +542,10 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             try:
                 for status_message in search_generator:
                     time.sleep(GEN_LATENCY_THRESH)
-                    yield original_model_reply + f"\n*{status_message}*"
+                    # Insert zero-width space before '*' to avoid empty line after newline
+                    yield original_model_reply + f"\n​*{status_message}*"
                 time.sleep(GEN_LATENCY_THRESH)
-                yield original_model_reply + "\n*Is typing...*"
+                yield original_model_reply + "\n​*Is typing...*"
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
