@@ -11,9 +11,14 @@ import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer, quantize_embeddings
 from sentence_transformers.util import batch_to_device, truncate_embeddings
-from duckduckgo_search import DDGS
-from duckduckgo_search.utils import json_loads
-from duckduckgo_search.exceptions import DuckDuckGoSearchException
+try:
+    from ddgs import DDGS
+    from ddgs.utils import json_loads
+    from ddgs.exceptions import DDGSException as DuckDuckGoSearchException
+except ModuleNotFoundError:
+    from duckduckgo_search import DDGS
+    from duckduckgo_search.utils import json_loads
+    from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
 
 @dataclass

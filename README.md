@@ -51,17 +51,15 @@ information about extensions.
 
 ### Updating DuckDuckGo Search Python Package
 
-By default, the `duckduckgo-search` python package is used to get results from DuckDuckGo. However, the `update_wizard` may downgrade `duckduckgo-search` to an outdated version again after installing the extension requirements. To avoid `202 Ratelimit` exceptions, you may want to update `duckduckgo-search` before using this extension, by using the following steps:
+The `duckduckgo-search` python package is now called `ddgs` and may now also retrieve results from other search engines, such as Bing. If you're fine with this, you can try to avoid the `202 Ratelimit` exceptions that regularly appear when using the old `duckduckgo-search` by manually installing `ddgs` before using this extension, by using the following steps:
 1. Run the appropriate `cmd_` script inside the text-generation-webui folder
-2. Check the version listed in the [extension requirements](https://github.com/mamei16/LLM_Web_search/blob/main/requirements.txt#L2)
-3. Run the command:
+2. Run the command:
    
 ```
-pip install --upgrade "duckduckgo_search==<version>"
+pip install ddgs
 ```
-\- Where you need to replace `<version>` with the version from step 2, for example 8.0.4  
 
-If you choose to use SearXNG as the search engine, you of course won't need to update `duckduckgo-search`.
+If you choose to use SearXNG as the search engine backend, you of course won't need to install `ddgs`.
 
 ## Usage
 
@@ -104,7 +102,9 @@ Download_webpage\("(.*)"\)
 ## Search backends
 
 ### DuckDuckGo
-This is the default web search backend.
+This is the default web search backend. 
+
+Note that the `duckduckgo-search` package that was used for this search backend  changed name to `ddgs` and may now also retrieve results from other search engines such as Bing (see the [Installation section](#installation))
 
 ### SearXNG
 
