@@ -400,6 +400,8 @@ def filter_similar_embeddings(
 def bow_filter_similar_texts(texts: List[str], similarity_fn: Callable, threshold: float,
                              doc_rank_to_source_rank: dict) -> List[int]:
     """Filter redundant documents based on the similarity of their bag-of-words."""
+    if not texts:
+        return []
     punct_pat = re.compile("[\n.,?!:;]")
     bow_dicts = [Counter(punct_pat.sub(" ", text).lower().split()) for text in texts]
     vocab_dict = {}
