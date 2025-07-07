@@ -1,5 +1,5 @@
 faiss-cpu==1.10.0
-duckduckgo_search==8.0.4
+duckduckgo_search==8.1.1
 beautifulsoup4==4.13.4
 unstructured==0.16.23
 rank_bm25==0.2.2
