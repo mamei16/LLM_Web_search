@@ -32,7 +32,7 @@ def perform_web_search(query, max_results=3, timeout=10):
         snippets = re.findall(r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
 
         result_dicts = []
-        for i in range(min(len(titles), max_results)):
+        for i in range(min(len(titles), len(urls), len(snippets), max_results)):
             url = f"https://{urls[i].strip()}"
             title = re.sub(r'<[^>]+>', '', titles[i]).strip()
             title = html.unescape(title)
