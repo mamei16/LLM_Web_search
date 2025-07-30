@@ -11,14 +11,6 @@ import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer, quantize_embeddings
 from sentence_transformers.util import batch_to_device, truncate_embeddings
-try:
-    from ddgs import DDGS
-    from ddgs.utils import json_loads
-    from ddgs.exceptions import DDGSException as DuckDuckGoSearchException
-except ModuleNotFoundError:
-    from duckduckgo_search import DDGS
-    from duckduckgo_search.utils import json_loads
-    from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
 
 @dataclass
@@ -330,52 +322,6 @@ def sync_device(device: torch.device):
         torch.xpu.synchronize(device)
     else:
         warnings.warn("Device type does not match 'cuda', 'xpu' or 'mps'. Not synchronizing")
-
-
-class MyDDGS(DDGS):
-    def answers(self, keywords: str) -> list[dict[str, str]]:
-        """DuckDuckGo instant answers. Query params: https://duckduckgo.com/params.
-
-        Args:
-            keywords: keywords for query,
-
-        Returns:
-            List of dictionaries with instant answers results.
-
-        Raises:
-            DuckDuckGoSearchException: Base exception for duckduckgo_search errors.
-            RatelimitException: Inherits from DuckDuckGoSearchException, raised for exceeding API request rate limits.
-            TimeoutException: Inherits from DuckDuckGoSearchException, raised for API request timeouts.
-        """
-        assert keywords, "keywords is mandatory"
-
-        payload = {
-            "q": f"what is {keywords}",
-            "format": "json",
-        }
-        try:
-            resp_content = self._get_url("GET", "https://api.duckduckgo.com/", params=payload)
-            if not isinstance(resp_content, bytes) and hasattr(resp_content, "content"):
-                resp_content = resp_content.content
-            page_data = json_loads(resp_content)
-        except DuckDuckGoSearchException as e:
-            print(f"LLM_Web_search | DuckDuckGo instant answer yielded error: {str(e)}")
-            return []
-
-        results = []
-        answer = page_data.get("AbstractText")
-        url = page_data.get("AbstractURL")
-        if answer:
-            results.append(
-                {
-                    "icon": None,
-                    "text": answer,
-                    "topic": None,
-                    "url": url,
-                }
-            )
-
-        return results
 
 
 def filter_similar_embeddings(

@@ -1,4 +1,8 @@
 import urllib
+from urllib.parse import quote_plus
+import re
+import logging
+import html
 
 import requests
 from requests.exceptions import JSONDecodeError
@@ -6,66 +10,55 @@ from bs4 import BeautifulSoup
 
 try:
     from .retrieval import DocumentRetriever
-    from .utils import Document, Generator, MyDDGS
+    from .utils import Document, Generator
 except ImportError:
     from retrieval import DocumentRetriever
-    from utils import Document, Generator, MyDDGS
+    from utils import Document, Generator
 
 
-def search_duckduckgo(query: str, max_results: int, instant_answers: bool = True,
-                      regular_search_queries: bool = True, get_website_content: bool = False) -> list[dict]:
-    query = query.strip("\"'")
-    with MyDDGS() as ddgs:
-        if instant_answers:
-            answer_list = ddgs.answers(query)
-        else:
-            answer_list = None
-        if answer_list:
-            answer_dict = answer_list[0]
-            answer_dict["title"] = query
-            answer_dict["body"] = answer_dict["text"]
-            answer_dict["href"] = answer_dict["url"]
-            answer_dict.pop('icon', None)
-            answer_dict.pop('topic', None)
-            answer_dict.pop('text', None)
-            answer_dict.pop('url', None)
-            return [answer_dict]
-        elif regular_search_queries:
-            results = []
-            for result in ddgs.text(query, region='wt-wt', safesearch='moderate',
-                                    timelimit=None, max_results=max_results):
-                if get_website_content:
-                    result["body"] = get_webpage_content(result["href"])
-                results.append(result)
-            return results
-        else:
-            raise ValueError("One of ('instant_answers', 'regular_search_queries') must be True")
+def perform_web_search(query, max_results=3, timeout=10):
+    """Modified version of function from main webUI in modules/web_search.py"""
+    try:
+        # Use DuckDuckGo HTML search endpoint
+        search_url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+
+        response = requests.get(search_url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+
+        # Extract results with regex
+        titles = re.findall(r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
+        urls = re.findall(r'<a[^>]*class="[^"]*result__url[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
+        snippets = re.findall(r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
+
+        result_dicts = []
+        for i in range(min(len(titles), max_results)):
+            url = f"https://{urls[i].strip()}"
+            title = re.sub(r'<[^>]+>', '', titles[i]).strip()
+            title = html.unescape(title)
+            snippet = html.unescape(snippets[i]).replace("<b>", "").replace("</b>", "")
+            result_dicts.append({"url": url, "title": title, "content": snippet})
+        return result_dicts
+
+    except Exception as e:
+        logger = logging.getLogger('text-generation-webui')
+        logger.error(f"Error performing web search: {e}")
+        return []
 
 
 def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, max_results: int,
-                                instant_answers: bool, simple_search: bool = False):
+                             simple_search: bool = False):
     documents = []
     query = query.strip("\"'")
     yield f'Getting results from DuckDuckGo...'
-    with MyDDGS() as ddgs:
-        if instant_answers:
-            answer_list = ddgs.answers(query)
-            if answer_list:
-                if max_results > 1:
-                    max_results -= 1  # We already have 1 result now
-                answer_dict = answer_list[0]
-                instant_answer_doc = Document(page_content=answer_dict["text"],
-                                              metadata={"source": answer_dict["url"]})
-                documents.append(instant_answer_doc)
 
-        result_documents = []
-        result_urls = []
-        for result in ddgs.text(query, region='wt-wt', safesearch='moderate', timelimit=None,
-                                max_results=document_retriever.num_results):
-            result_document = Document(page_content=f"Title: {result['title']}\n{result['body']}",
-                                       metadata={"source": result["href"]})
-            result_documents.append(result_document)
-            result_urls.append(result["href"])
+    result_documents = []
+    result_urls = []
+    for result in perform_web_search(query, max_results=max_results):
+        result_document = Document(page_content=f"Title: {result['title']}\n{result['content']}",
+                                   metadata={"source": result["url"]})
+        result_documents.append(result_document)
+        result_urls.append(result["url"])
 
     if simple_search:
         retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))

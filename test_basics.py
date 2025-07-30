@@ -13,7 +13,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_basic_search(self):
         gen = Generator(retrieve_from_duckduckgo("How much does a LLama weigh?",
-                                                 self.document_retriever, instant_answers=True, max_results=5))
+                                                 self.document_retriever, max_results=5))
         status_messages = list(gen)
         self.assertEqual(status_messages[0], "Getting results from DuckDuckGo...")
         self.assertEqual(status_messages[1], "Downloading and chunking webpages...")
@@ -24,6 +24,7 @@ class MyTestCase(unittest.TestCase):
 
         for document in search_result_dict:
             self.assertIsNotNone(document.page_content)
+            self.assertNotEqual(document.page_content, "")
             self.assertIsNotNone(document.metadata['source'])
 
 
