@@ -2,9 +2,7 @@
 ![unit tests](https://github.com/mamei16/LLM_Web_search/actions/workflows/unit_tests.yml/badge.svg?branch=main)
 
 This project gives local LLMs the ability to search the web by outputting a specific
-command. Once the command has been found in the model output using a regular expression,
-[duckduckgo-search](https://pypi.org/project/duckduckgo-search/)
-is used to search the web and return a number of result pages. Finally, an
+command. Once the command has been found in the model output using a regular expression, a web search is issued, returning a number of result pages. Finally, an
 ensemble of a dense embedding model and 
 [Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) (Or alternatively, [SPLADE](https://github.com/naver/splade))
 is used to extract the relevant parts (if any) of each web page in the search results
@@ -49,17 +47,6 @@ title "LLM Web Search" should be visible in the web UI.
 See https://github.com/oobabooga/text-generation-webui/wiki/07-%E2%80%90-Extensions for more
 information about extensions.
 
-### Updating DuckDuckGo Search Python Package
-
-The `duckduckgo-search` python package is now called `ddgs` and may now also retrieve results from other search engines, such as Bing. If you're fine with this, you can try to avoid the `202 Ratelimit` exceptions that regularly appear when using the old `duckduckgo-search` by manually installing `ddgs` before using this extension, by using the following steps:
-1. Run the appropriate `cmd_` script inside the text-generation-webui folder
-2. Run the command:
-   
-```
-pip install ddgs
-```
-
-If you choose to use SearXNG as the search engine backend, you of course won't need to install `ddgs`.
 
 ## Usage
 
@@ -103,8 +90,6 @@ Download_webpage\("(.*)"\)
 
 ### DuckDuckGo
 This is the default web search backend. 
-
-Note that the `duckduckgo-search` package that was used for this search backend  changed name to `ddgs` and may now also retrieve results from other search engines such as Bing (see the [Installation section](#installation))
 
 ### SearXNG
 

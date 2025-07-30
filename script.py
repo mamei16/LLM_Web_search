@@ -530,7 +530,6 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                 search_generator = Generator(retrieve_from_duckduckgo(search_term,
                                                                       document_retriever,
                                                                       max_search_results,
-                                                                      instant_answers,
                                                                       simple_search))
             else:
                 search_generator = Generator(retrieve_from_searxng(search_term,
