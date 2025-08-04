@@ -60,7 +60,7 @@ document_retriever = None
 update_history_dict = defaultdict(str)
 chat_id = None
 force_search = False
-GEN_LATENCY_THRESH = 0.002
+GEN_LATENCY_THRESH = 0.01
 
 
 def setup():
@@ -509,6 +509,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
 
+    search_start_idx = 0
     model_reply_gen = generate_func(question, original_question, state, stopping_strings, is_chat=is_chat)
     reply = None
     for reply in model_reply_gen:
@@ -516,13 +517,17 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
         if force_search and not recursive_call:
             reply = params["force search prefix"] + reply
 
-        search_re_match = compiled_search_command_regex.search(reply)
+        search_re_match = compiled_search_command_regex.search(reply[search_start_idx:])
         if search_re_match is not None:
             yield reply
+            search_term = search_re_match.group(1)
+            if search_term == "query":
+                search_start_idx = search_re_match.span()[1]
+                print(f'LLM_Web_search | Ignoring search for query "query"')
+                continue
             model_reply_gen.close()
             original_model_reply = reply
             web_search = True
-            search_term = search_re_match.group(1)
             print(f"LLM_Web_search | Searching for {search_term}...")
             reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
