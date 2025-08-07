@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from collections import defaultdict
 from functools import partial
+import logging
 
 import gradio as gr
 import torch
@@ -54,6 +55,7 @@ params = {
     "token classification model id": "mirth/chonky_distilbert_base_uncased_1",
     "think after searching": True
 }
+logger = logging.getLogger('text-generation-webui')
 custom_system_message_filename = None
 extension_path = os.path.dirname(os.path.abspath(__file__))
 document_retriever = None
@@ -426,7 +428,42 @@ def ui():
     think_after_search.change(lambda x: params.update({"think after searching": x}), think_after_search, None)
 
 
-def get_generation_prompt(state, impersonate=False, enable_thinking=True):
+def get_generation_prompt_prefix_suffix(renderer, impersonate=False, strip_trailing_spaces=True,
+                                        impersonate_tool=False):
+    '''
+    Given a Jinja template, reverse-engineers the prefix and the suffix for
+    an assistant message (if impersonate=False) or an user message
+    (if impersonate=True)
+    '''
+
+    if impersonate:
+        messages = [
+            {"role": "user", "content": "<<|user-message-1|>>"},
+            {"role": "user", "content": "<<|user-message-2|>>"},
+        ]
+    elif impersonate_tool:
+        messages = [
+            {"role": "tool", "content": "<<|user-message-1|>>"},
+            {"role": "tool", "content": "<<|user-message-2|>>"},
+        ]
+    else:
+        messages = [
+            {"role": "assistant", "content": "<<|user-message-1|>>"},
+            {"role": "assistant", "content": "<<|user-message-2|>>"},
+        ]
+
+    prompt = renderer(messages=messages)
+
+    suffix_plus_prefix = prompt.split("<<|user-message-1|>>")[1].split("<<|user-message-2|>>")[0]
+    suffix = prompt.split("<<|user-message-2|>>")[1]
+    prefix = suffix_plus_prefix[len(suffix):]
+
+    if strip_trailing_spaces:
+        prefix = prefix.rstrip(' ')
+
+    return prefix, suffix
+
+def get_generation_prompt(state, impersonate=False, enable_thinking=True, impersonate_tool=False):
     chat_template_str = state['chat_template_str']
     if state['mode'] != 'instruct':
         chat_template_str = chat.replace_character_names(chat_template_str, state['name1'], state['name2'])
@@ -450,9 +487,11 @@ def get_generation_prompt(state, impersonate=False, enable_thinking=True):
         user_bio=chat.replace_character_names(state['user_bio'], state['name1'], state['name2']),
     )
     if state["mode"] == "instruct":
-        start_turn_str, end_turn_str = chat.get_generation_prompt(instruct_renderer, impersonate, False)
+        start_turn_str, end_turn_str = get_generation_prompt_prefix_suffix(instruct_renderer, impersonate, False,
+                                                                           impersonate_tool)
     else:
-        start_turn_str, end_turn_str = chat.get_generation_prompt(chat_renderer, impersonate, False)
+        start_turn_str, end_turn_str = get_generation_prompt_prefix_suffix(chat_renderer, impersonate, False,
+                                                                           impersonate_tool)
 
     if not enable_thinking:
         start_turn_str += chat.get_thinking_suppression_string(instruction_template)
@@ -505,6 +544,10 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
 
     compiled_search_command_regex = re.compile(search_command_regex)
     compiled_open_url_command_regex = re.compile(open_url_command_regex)
+    search_command = search_command_regex.rstrip("*\\[':.(?]\")")
+    gpt_oss_search_command_regex = f'{search_command} ?(?:json|code)<\|message\|>{{"query": ?"(.*?)".*}}'
+
+    is_gpt_oss = '<|channel|>final<|message|>' in state['instruction_template_str']
 
     if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
@@ -517,20 +560,29 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
         if force_search and not recursive_call:
             reply = params["force search prefix"] + reply
 
-        search_re_match = compiled_search_command_regex.search(reply[search_start_idx:])
-        if search_re_match is not None:
+        reply_substr = reply[search_start_idx:]
+
+        search_re_match = compiled_search_command_regex.search(reply_substr)
+        if search_re_match is not None or is_gpt_oss and (search_re_match := re.search(gpt_oss_search_command_regex, reply_substr)) is not None:
             yield reply
             search_term = search_re_match.group(1)
+
             if search_term == "query":
                 search_start_idx = search_re_match.span()[1]
-                print(f'LLM_Web_search | Ignoring search for query "query"')
+                logger.info(f'LLM_Web_search | Ignoring search for query "query"')
                 continue
+
             model_reply_gen.close()
             original_model_reply = reply
             web_search = True
-            print(f"LLM_Web_search | Searching for {search_term}...")
-            reply += "\n```plaintext"
-            reply += "\nSearch tool:\n"
+            logger.info(f"LLM_Web_search | Searching for {search_term}...")
+
+            if is_gpt_oss:
+                result_str = "Web search results:\n"
+            else:
+                reply += "\n```plaintext"
+                reply += "\nSearch tool:\n"
+
             if searxng_url == "":
                 search_generator = Generator(retrieve_from_duckduckgo(search_term,
                                                                       document_retriever,
@@ -553,17 +605,27 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
-                reply += f"The search tool encountered an error: {exception_message}"
-                print(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
+                if is_gpt_oss:
+                    result_str += f"The search tool encountered an error: {exception_message}"
+                else:
+                    reply += f"The search tool encountered an error: {exception_message}"
+                logger.warning(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
             else:
                 if search_results != "":
-                    reply += search_results
+                    if is_gpt_oss:
+                        result_str += search_results
+                    else:
+                        reply += search_results
                 else:
-                    reply += f"\nThe search tool did not return any results."
-            reply += "```\n"
-            if display_search_results:
-                time.sleep(GEN_LATENCY_THRESH)
-                yield reply
+                    if is_gpt_oss:
+                        result_str += f"\nThe search tool did not return any results."
+                    else:
+                        reply += f"\nThe search tool did not return any results."
+            if not is_gpt_oss:
+                reply += "```\n"
+                if display_search_results:
+                    time.sleep(GEN_LATENCY_THRESH)
+                    yield reply
             break
 
         open_url_re_match = compiled_open_url_command_regex.search(reply)
@@ -573,14 +635,14 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             original_model_reply = reply
             read_webpage = True
             url = open_url_re_match.group(1)
-            print(f"LLM_Web_search | Reading {url}...")
+            logger.info(f"LLM_Web_search | Reading {url}...")
             reply += "\n```plaintext"
             reply += "\nURL opener tool:\n"
             try:
                 webpage_content = get_webpage_content(url)
             except Exception as exc:
                 reply += f"Couldn't open {url}. Error message: {str(exc)}"
-                print(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
+                logger.warning(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
             else:
                 reply += f"\nText content of {url}:\n"
                 reply += webpage_content
@@ -595,8 +657,15 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     if web_search or read_webpage:
         display_results = web_search and display_search_results or read_webpage and display_webpage_content
         # Add results to context and continue model output
-        start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
-        new_question = question + reply + end_turn_str + start_turn_str
+        if web_search and is_gpt_oss:
+            start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
+            start_turn_str = "<|start|>assistant<|channel|>analysis<|message|>"
+            tool_start_turn_str, tool_end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"],
+                                                                           impersonate_tool=True)
+            new_question = question + reply + end_turn_str + tool_start_turn_str + result_str + tool_end_turn_str + start_turn_str
+        else:
+            start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
+            new_question = question + reply + end_turn_str + start_turn_str
         new_reply = ""
         for new_reply in custom_generate_reply(new_question, new_question, state,
                                                stopping_strings, is_chat=is_chat, recursive_call=True):
