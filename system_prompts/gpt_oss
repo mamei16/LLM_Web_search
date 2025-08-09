@@ -1,0 +1,13 @@
+# Tools
+
+namespace browser {
+
+// Searches the web and displays the results.
+type search_web = (_: {
+query: string
+}) => any;
+
+} // namespace browser
+
+** IMPORTANT **: You don't have access to any tool to open or read results and can't use cursors! You have to use the web search results directly.
+If you cite a source, you **must** use markdown format e.g.,  [source name](source URL)
