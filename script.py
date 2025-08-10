@@ -342,6 +342,7 @@ def ui():
                                value=lambda: params["chunk size"], precision=0,
                                visible=not params["simple search"])
         think_after_search = gr.Checkbox(label="Enable thinking after searching",
+                                         info='Used by pre-2507 Qwen3.',
                                          value=lambda: params["think after searching"])
 
     with gr.Row():
