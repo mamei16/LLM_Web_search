@@ -2,7 +2,7 @@ faiss-cpu==1.10.0
 beautifulsoup4==4.13.4
 unstructured==0.16.23
 rank_bm25==0.2.2
-sentence-transformers==4.1.0
+sentence-transformers==5.1.0
 optimum==1.24.0
 Brotli==1.1.0
 aiohttp>=3.12.14
