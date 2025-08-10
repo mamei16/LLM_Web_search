@@ -1,5 +1,4 @@
 import time
-import re
 import json
 import os
 from datetime import datetime
@@ -9,6 +8,7 @@ import logging
 
 import gradio as gr
 import torch
+import regex
 
 import modules.shared as shared
 from modules import chat, ui as ui_module
@@ -216,12 +216,12 @@ def ui():
             params.update({setting_key: params[f"default {setting_key}"]})
             return {error_html_element: gr.HTML("", visible=False)}
         try:
-            compiled = re.compile(input_str)
+            compiled = regex.compile(input_str)
             if compiled.groups > 1:
-                raise re.error(f"Only 1 capturing group allowed in regex, but there are {compiled.groups}.")
+                raise regex.error(f"Only 1 capturing group allowed in regex, but there are {compiled.groups}.")
             params.update({setting_key: input_str})
             return {error_html_element: gr.HTML("", visible=False)}
-        except re.error as e:
+        except regex.error as e:
             return {error_html_element: gr.HTML(f'<span style="color:red"> Invalid regex. {str(e).capitalize()}</span>',
                                                 visible=True)}
 
@@ -505,8 +505,8 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     if open_url_command_regex == "":
         open_url_command_regex = params["default open url command regex"]
 
-    compiled_search_command_regex = re.compile(search_command_regex)
-    compiled_open_url_command_regex = re.compile(open_url_command_regex)
+    compiled_search_command_regex = regex.compile(search_command_regex)
+    compiled_open_url_command_regex = regex.compile(open_url_command_regex)
     search_command = search_command_regex.rstrip("*\\[':.(?]\")")
     gpt_oss_search_command_regex = f'({search_command}) ?(?:JSON|json|code)<\|message\|>{{"query": ?"(.*?)".*}}'
     open_url_command = open_url_command_regex.rstrip("*\\[':.(?]\")")
@@ -528,7 +528,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
         reply_substr = reply[search_start_idx:]
 
         search_re_match = compiled_search_command_regex.search(reply_substr)
-        if search_re_match is not None or is_gpt_oss and (search_re_match := re.search(gpt_oss_search_command_regex, reply_substr)) is not None:
+        if search_re_match is not None or is_gpt_oss and (search_re_match := regex.search(gpt_oss_search_command_regex, reply_substr)) is not None:
             yield reply
             if is_gpt_oss:
                 search_command = search_re_match.group(1)
@@ -599,7 +599,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
 
         open_url_re_match = compiled_open_url_command_regex.search(reply)
         if (open_url_re_match is not None or is_gpt_oss
-                and (open_url_re_match := re.search(gpt_oss_open_url_command_regex, reply_substr)) is not None):
+                and (open_url_re_match := regex.search(gpt_oss_open_url_command_regex, reply_substr)) is not None):
             yield reply
 
             if is_gpt_oss:
