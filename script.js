@@ -55,5 +55,8 @@ gradio_show_force_search_box.addEventListener('change', function() {
   }
 });
 
+var keep_results_checkbox = document.getElementById("keep-results-checkbox");
+keep_results_checkbox.insertAdjacentElement("afterend", keep_results_checkbox.children[1]);
+
 const event = new Event("change");
 gradio_show_force_search_box.dispatchEvent(event);

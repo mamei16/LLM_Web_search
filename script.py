@@ -37,6 +37,7 @@ params = {
     "default open url command regex": r"Download_webpage\(\"(.*)\"\)",
     "display search results in chat": True,
     "display extracted URL content in chat": True,
+    "keep results in context": True,
     "searxng url": "",
     "cpu only": True,
     "chunk size": 500,
@@ -261,9 +262,12 @@ def ui():
                                        label='Display search results in chat')
             show_url_content = gr.Checkbox(value=lambda: params['display extracted URL content in chat'],
                                            label='Display extracted URL content in chat')
-            show_force_search = gr.Checkbox(value=lambda: params['show force search checkbox'],
-                                           label='Show force search checkbox', elem_id="show-force-search-box")
-    gr.Markdown(value='---')
+            keep_results_in_ctx = gr.Checkbox(value=lambda: params['keep results in context'],
+                                              label='Keep previous search results in context',
+                                              info="Only applies to searches outside of thinking blocks",
+                                              interactive=not params['display search results in chat'],
+                                              elem_classes="settings-checkbox", elem_id="keep-results-checkbox")
+    gr.Markdown(value='---', elem_id="first-separator")
     with gr.Row():
         with gr.Column():
             gr.Markdown(value='#### Load custom system message\n'
@@ -327,12 +331,12 @@ def ui():
                                          "downloads will be cancelled to start the retrieval process immediately",
                                    minimum=1, maximum=100,
                                    value=lambda: params["client timeout"], precision=0)
-        gr.Markdown("**Note: Changing the following might result in DuckDuckGo rate limiting or the LM being overwhelmed**")
-        num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
-                                       value=lambda: params["search results per query"], precision=0)
-        num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
-                                               maximum=100, value=lambda: params["duckduckgo results per query"],
-                                               precision=0)
+        with gr.Row():
+            num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
+                                           value=lambda: params["search results per query"], precision=0)
+            num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
+                                                   maximum=100, value=lambda: params["duckduckgo results per query"],
+                                                   precision=0)
         similarity_score_threshold = gr.Number(label="Similarity Score Threshold", minimum=0., maximum=1.,
                                                value=lambda: params["langchain similarity score threshold"],
                                                info="Discard chunks that are not similar "
@@ -344,6 +348,8 @@ def ui():
         think_after_search = gr.Checkbox(label="Enable thinking after searching",
                                          info='Used by pre-2507 Qwen3.',
                                          value=lambda: params["think after searching"])
+        show_force_search = gr.Checkbox(value=lambda: params['show force search checkbox'],
+                                        label='Show force search checkbox', elem_id="show-force-search-box")
 
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
@@ -381,9 +387,12 @@ def ui():
                                                                  open_url_command_regex_error_label),
                                   open_url_command_regex, open_url_command_regex_error_label, show_progress="hidden")
 
-    show_results.change(lambda x: params.update({"display search results in chat": x}), show_results, None)
+    show_results.change(lambda x: params.update({"display search results in chat": x}), show_results,
+                        None).then(lambda x: gr.update(interactive=not x), show_results, keep_results_in_ctx,
+                                          show_progress="hidden")
     show_url_content.change(lambda x: params.update({"display extracted URL content in chat": x}), show_url_content,
                             None)
+    keep_results_in_ctx.change(lambda x: params.update({"keep results in context": x}), keep_results_in_ctx,None)
     show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
 
@@ -500,6 +509,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     searxng_url = params["searxng url"]
     display_search_results = params["display search results in chat"]
     display_webpage_content = params["display extracted URL content in chat"]
+    keep_results_in_context = params["keep results in context"]
 
     if search_command_regex == "":
         search_command_regex = params["default search command regex"]
@@ -672,7 +682,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             else:
                 yield f"{original_model_reply}\n{new_reply}"
 
-        if not display_results:
+        if not display_results and keep_results_in_context:
             update_history_dict[state["unique_id"]] = f"{reply}\n{update_history_dict[state['unique_id']]}"
     else:
         if recursive_call and not display_search_results:
@@ -694,10 +704,10 @@ def output_modifier(string, state, is_chat=False):
 
 def custom_css():
     """
-    Returns custom CSS as a string. It is applied whenever the web UI is loaded.
-    :return:
+    Returns a CSS string that gets appended to the CSS for the webui.
     """
-    return ''
+    with open(os.path.join(extension_path, "style.css"), "r") as f:
+        return f.read()
 
 
 def custom_js():

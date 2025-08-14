@@ -1,0 +1,13 @@
+.settings-checkbox > label > input[disabled] {
+    opacity: .6;
+    filter: grayscale(100%);
+}
+
+.settings-checkbox > label.disabled > span {
+    color: #525252;
+    opacity: .6;
+}
+
+#first-separator {
+    margin-top: -10px;
+}
