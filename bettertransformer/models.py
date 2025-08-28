@@ -24,7 +24,7 @@ except ImportError:
 class BetterTransformerBaseLayer:
     def __init__(
         self,
-        config: "PretrainedConfig",
+        config,
     ):
         r"""
         Base layer for `BetterTransformer` integration. This class is used to wrap all the necessary
