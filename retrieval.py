@@ -11,7 +11,6 @@ import torch
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from transformers.utils.hub import cached_file
-from bettertransformer.transformation import BetterTransformer
 
 try:
     from .retrievers.faiss_retriever import FaissRetriever
@@ -22,6 +21,7 @@ try:
     from .chunkers.ner_chunker import TokenClassificationChunker
     from .utils import (Document, MySentenceTransformer, cosine_similarity,
                         filter_similar_embeddings, bow_filter_similar_texts)
+    from .bettertransformer.transformation import BetterTransformer
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
@@ -31,6 +31,7 @@ except ImportError:
     from chunkers.ner_chunker import TokenClassificationChunker
     from utils import (Document, MySentenceTransformer, cosine_similarity,
                        filter_similar_embeddings, bow_filter_similar_texts)
+    from bettertransformer.transformation import BetterTransformer
 
 
 class DocumentRetriever:
