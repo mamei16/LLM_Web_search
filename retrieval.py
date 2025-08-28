@@ -1,7 +1,6 @@
 import re
 import asyncio
 import warnings
-import logging
 from typing import List, Dict, Iterable, Callable, Iterator
 from collections import defaultdict
 from itertools import chain
@@ -12,7 +11,7 @@ import torch
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 from transformers.utils.hub import cached_file
-import optimum.bettertransformer.transformation
+from bettertransformer.transformation import BetterTransformer
 
 try:
     from .retrievers.faiss_retriever import FaissRetriever
@@ -60,13 +59,8 @@ class DocumentRetriever:
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                            **splade_kwargs).to(self.device)
-            optimum_logger = optimum.bettertransformer.transformation.logger
-            original_log_level = optimum_logger.level
-            # Set the level to 'ERROR' to ignore "The BetterTransformer padding during training warning"
-            optimum_logger.setLevel(logging.ERROR)
-            self.splade_doc_model.to_bettertransformer()
-            self.splade_query_model.to_bettertransformer()
-            optimum_logger.setLevel(original_log_level)
+            BetterTransformer.transform(self.splade_doc_model)
+            BetterTransformer.transform(self.splade_query_model)
             self.splade_batch_size = splade_batch_size
 
         self.token_classification_chunker = None
