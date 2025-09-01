@@ -1,5 +1,5 @@
 faiss-cpu==1.10.0
-beautifulsoup4==4.13.4
+beautifulsoup4==4.13.5
 unstructured==0.16.23
 rank_bm25==0.2.2
 sentence-transformers==4.1.0
