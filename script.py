@@ -439,6 +439,36 @@ def ui():
 
 
 def get_generation_prompt(state, impersonate=False, enable_thinking=True):
+
+    def _get_generation_prompt(renderer, impersonate=False, strip_trailing_spaces=True):
+        '''
+        Given a Jinja template, reverse-engineers the prefix and the suffix for
+        an assistant message (if impersonate=False) or an user message
+        (if impersonate=True)
+        '''
+
+        if impersonate:
+            messages = [
+                {"role": "user", "content": "<<|user-message-1|>>"},
+                {"role": "user", "content": "<<|user-message-2|>>"},
+            ]
+        else:
+            messages = [
+                {"role": "assistant", "content": "<<|user-message-1|>>"},
+                {"role": "assistant", "content": "<<|user-message-2|>>"},
+            ]
+
+        prompt = renderer(messages=messages)
+
+        suffix_plus_prefix = prompt.split("<<|user-message-1|>>")[1].split("<<|user-message-2|>>")[0]
+        suffix = prompt.split("<<|user-message-2|>>")[1]
+        prefix = suffix_plus_prefix[len(suffix):]
+
+        if strip_trailing_spaces:
+            prefix = prefix.rstrip(' ')
+
+        return prefix, suffix
+
     chat_template_str = state['chat_template_str']
     if state['mode'] != 'instruct':
         chat_template_str = chat.replace_character_names(chat_template_str, state['name1'], state['name2'])
@@ -462,9 +492,9 @@ def get_generation_prompt(state, impersonate=False, enable_thinking=True):
         user_bio=chat.replace_character_names(state['user_bio'], state['name1'], state['name2']),
     )
     if state["mode"] == "instruct":
-        start_turn_str, end_turn_str = chat.get_generation_prompt(instruct_renderer, impersonate, False)
+        start_turn_str, end_turn_str = _get_generation_prompt(instruct_renderer, impersonate, False)
     else:
-        start_turn_str, end_turn_str = chat.get_generation_prompt(chat_renderer, impersonate, False)
+        start_turn_str, end_turn_str = _get_generation_prompt(chat_renderer, impersonate, False)
 
     if not enable_thinking:
         start_turn_str += chat.get_thinking_suppression_string(instruction_template)
