@@ -1,6 +1,6 @@
 import urllib
 from urllib.parse import quote_plus
-import re
+import regex
 import logging
 import html
 
@@ -26,15 +26,18 @@ def perform_web_search(query, max_results=3, timeout=10):
         response = requests.get(search_url, headers=headers, timeout=timeout)
         response.raise_for_status()
 
+        if regex.search("anomaly-modal__mask", response.text, regex.DOTALL):
+            raise ValueError("Web search failed due to CAPTCHA")
+
         # Extract results with regex
-        titles = re.findall(r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
-        urls = re.findall(r'<a[^>]*class="[^"]*result__url[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
-        snippets = re.findall(r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>', response.text, re.DOTALL)
+        titles = regex.findall(r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*>(.*?)</a>', response.text, regex.DOTALL)
+        urls = regex.findall(r'<a[^>]*class="[^"]*result__url[^"]*"[^>]*>(.*?)</a>', response.text, regex.DOTALL)
+        snippets = regex.findall(r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>', response.text, regex.DOTALL)
 
         result_dicts = []
         for i in range(min(len(titles), len(urls), len(snippets), max_results)):
             url = f"https://{urls[i].strip()}"
-            title = re.sub(r'<[^>]+>', '', titles[i]).strip()
+            title = regex.sub(r'<[^>]+>', '', titles[i]).strip()
             title = html.unescape(title)
             snippet = html.unescape(snippets[i]).replace("<b>", "").replace("</b>", "")
             result_dicts.append({"url": url, "title": title, "content": snippet})

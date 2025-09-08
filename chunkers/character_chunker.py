@@ -18,7 +18,7 @@ class RecursiveCharacterTextSplitter(TextSplitter):
     """
     def __init__(self, chunk_size: int = 4000, chunk_overlap: int = 200, length_function: Callable[[str], int] = len,
                  add_start_index: bool = False, strip_whitespace: bool = True, separators: Optional[List[str]] = None,
-                 keep_separator: Union[bool, Literal["start", "end"]] = True, is_separator_regex: bool = False,
+                 keep_separator: Union[bool, Literal["start", "end"]] = "end", is_separator_regex: bool = False,
                  **kwargs: Any) -> None:
         """Create a new TextSplitter."""
         super().__init__(chunk_size, chunk_overlap, length_function, keep_separator, add_start_index, strip_whitespace)
