@@ -1,0 +1,18 @@
+# Tools
+
+namespace browser {
+
+// Searches the web and displays the results.
+type search_web = (_: {
+query: string
+}) => any;
+
+// Downloads a webpage and displays the extracted plaintext content
+type download_webpage = (_: {
+url: string
+}) => any;
+
+} // namespace browser
+
+If you cite a source, you **must** use markdown format e.g.,  [source name](source URL)
+
