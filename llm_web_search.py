@@ -101,6 +101,9 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
 
         result_dicts = response_dict["results"]
         if not result_dicts:
+            if "unresponsive_engines" in response_dict and not result_urls:
+                raise ValueError("No results found. Some search engines were unresponsive: " + str(
+                    response_dict["unresponsive_engines"]))
             break
         for result in result_dicts:
             if "content" in result:   # Since some websites don't provide any description
