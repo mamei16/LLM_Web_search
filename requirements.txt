@@ -1,4 +1,4 @@
-faiss-cpu==1.10.0
+faiss-cpu==1.12.0
 beautifulsoup4==4.13.4
 unstructured==0.16.23
 rank_bm25==0.2.2
