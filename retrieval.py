@@ -101,12 +101,14 @@ class DocumentRetriever:
                                                    breakpoint_threshold_amount=self.chunker_breakpoint_threshold_amount,
                                                    max_chunk_size=self.chunk_size)
         elif self.chunking_method == "token-classifier":
+            model_is_downloaded = True
             try:
                 cached_file(self.token_classification_model_id, "config.json", local_files_only=True,
                             cache_dir=self.model_cache_dir)
             except OSError:
+                model_is_downloaded = False
                 yield "Downloading token classification model..."
-            if not self.token_classification_chunker:
+            if not self.token_classification_chunker or not model_is_downloaded:
                 self.token_classification_chunker = TokenClassificationChunker(model_id=self.token_classification_model_id,
                                                                                device=self.device,
                                                                                model_cache_dir=self.model_cache_dir,

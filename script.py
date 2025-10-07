@@ -40,7 +40,7 @@ params = {
     "keep results in context": True,
     "searxng url": "",
     "cpu only": True,
-    "chunk size": 500,
+    "chunk size": 800,
     "duckduckgo results per query": 10,
     "append current datetime": False,
     "default system prompt filename": None,
@@ -327,6 +327,13 @@ def ui():
                                                                  " to be for them to be split into separate chunks",
                                                             precision=0,
                                                             visible=not params["simple search"])
+        token_classification_chunker_model = gr.Dropdown(label="Token Classifier Model",
+                                                         choices=["mirth/chonky_distilbert_base_uncased_1",
+                                                                  "mamei16/chonky_distilbert_base_uncased_1.1",
+                                                                  "mirth/chonky_modernbert_base_1",
+                                                                  "mirth/chonky_modernbert_large_1"],
+                                                         value=lambda: params["token classification model id"])
+
         client_timeout = gr.Number(label="Client timeout (in seconds)", info="When reached, pending or unfinished webpage "
                                          "downloads will be cancelled to start the retrieval process immediately",
                                    minimum=1, maximum=100,
@@ -365,6 +372,8 @@ def ui():
     chunker.change(lambda x: params.update({"chunking method": x}), chunker, None)
     chunker_breakpoint_threshold_amount.change(lambda x: params.update({"chunker breakpoint_threshold_amount": x}),
                                                chunker_breakpoint_threshold_amount, None)
+    token_classification_chunker_model.change(lambda x: params.update({"token classification model id": x}),
+                                                                      token_classification_chunker_model, None)
     client_timeout.change(lambda x: params.update({"client timeout": x}), client_timeout, None)
     num_search_results.change(lambda x: params.update({"search results per query": x}), num_search_results, None)
     num_process_search_results.change(lambda x: params.update({"duckduckgo results per query": x}),
