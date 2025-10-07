@@ -558,9 +558,9 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     compiled_search_command_regex = regex.compile(search_command_regex)
     compiled_open_url_command_regex = regex.compile(open_url_command_regex)
     search_command = search_command_regex.rstrip("*\\[':.(?]\")")
-    gpt_oss_search_command_regex = f'({search_command}) ?(?:JSON|json|code)<\|message\|>{{"query": ?"(.*?)".*}}'
+    gpt_oss_search_command_regex = f'({search_command}) ?(?:<\|constrain\|>)?(?:JSON|json|code)<\|message\|>{{"query": ?"(.*?)".*}}'
     open_url_command = open_url_command_regex.rstrip("*\\[':.(?]\")")
-    gpt_oss_open_url_command_regex = f'({open_url_command}) ?(?:JSON|json|code)<\|message\|>{{"url": ?"(.*?)".*}}'
+    gpt_oss_open_url_command_regex = f'({open_url_command}) ?(?:<\|constrain\|>)?(?:JSON|json|code)<\|message\|>{{"url": ?"(.*?)".*}}'
 
     is_gpt_oss = '<|channel|>final<|message|>' in state['instruction_template_str']
 
