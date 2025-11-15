@@ -53,7 +53,7 @@ params = {
     "simple search": False,
     "client timeout": 10,
     "show force search checkbox": True,
-    "token classification model id": "mirth/chonky_distilbert_base_uncased_1",
+    "token classification model id": "mamei16/chonky_distilbert-base-multilingual-cased",
     "think after searching": True
 }
 logger = logging.getLogger('text-generation-webui')
@@ -330,6 +330,7 @@ def ui():
         token_classification_chunker_model = gr.Dropdown(label="Token Classifier Model",
                                                          choices=["mirth/chonky_distilbert_base_uncased_1",
                                                                   "mamei16/chonky_distilbert_base_uncased_1.1",
+                                                                  "mamei16/chonky_distilbert-base-multilingual-cased",
                                                                   "mirth/chonky_modernbert_base_1",
                                                                   "mirth/chonky_modernbert_large_1"],
                                                          value=lambda: params["token classification model id"])
