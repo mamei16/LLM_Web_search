@@ -53,7 +53,7 @@ params = {
     "simple search": False,
     "client timeout": 10,
     "show force search checkbox": True,
-    "token classification model id": "mamei16/chonky_distilbert-base-multilingual-cased",
+    "token classification model id": "mirth/chonky_distilbert_base_uncased_1",
     "think after searching": True
 }
 logger = logging.getLogger('text-generation-webui')
