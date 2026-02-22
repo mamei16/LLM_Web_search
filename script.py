@@ -588,7 +588,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                 search_term = search_re_match.group(1)
 
             if search_term == "query":
-                search_start_idx = search_re_match.span()[1]
+                search_start_idx = search_start_idx + search_re_match.span()[1]
                 logger.info(f'LLM_Web_search | Ignoring search for query "query"')
                 continue
 
@@ -660,7 +660,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                 url = open_url_re_match.group(1)
 
             if url == "url":
-                search_start_idx = open_url_re_match.span()[1]
+                search_start_idx = search_start_idx + open_url_re_match.span()[1]
                 logger.info(f'LLM_Web_search | Ignoring tool call to open url "url"')
                 continue
 
