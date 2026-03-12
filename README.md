@@ -111,7 +111,7 @@ Note: Some advanced options in the UI will be hidden when simple search is enabl
 Note2: The snippets returned by SearXNG are often much more useful than those returned by DuckDuckGo, so consider using SearXNG as the search backend if you use simple search.
 ### Full search
 Scans entire websites in the results for a more comprehensive search. Ideally, this search type should be able to find "needle in the haystack" information hidden somewhere in the website text. Hence, choose this option if you want to trade a more resource intensive search process for generally more relevant search results.   
-For the best possible search results, also enable semantic chunking and use SPLADE as the keyword retriever.
+**For the best possible search results, also enable token classification based chunking and use SPLADE as the keyword retriever.**
 ## Keyword retrievers
 ### Okapi BM25
 This extension comes out of the box with 
@@ -158,3 +158,7 @@ If you (like me) have ≤ 12 GB VRAM, I recommend using one of:
  Since the Qwen3 family consists of reasoning models, some unique problems arise:  
   1. It seems that Qwen3 models are harder to prompt to use the search command. I have uploaded the system prompt that has worked most reliably under the name "reasoning_enforce_search".
   2. By ticking the checkbox "Enable thinking after searching" in the extension's settings, the model will resume thinking after each search. However, the main webUI only expects the model to think *once* at the start of the message, and so only the first thinking output will be put into a collapsible UI block. You can download a patch [here](https://gist.github.com/mamei16/bdcb994f93f7b3d2c389c04d32bc68d4) that fixes this. Download and extract it, then navigate to your `text-generation-webui` directory, put the patch file there and finally run `git apply ooba_multi_thinking.patch`
+- [GPT-OSS-20b](https://huggingface.co/openai/gpt-oss-20b)  
+You should use either the `gpt_oss` or `gpt_oss2` custom system message.
+- [Nanbeige4.1-3B](Nanbeige/Nanbeige4.1-3B)
+- [Qwen-3.5](https://huggingface.co/collections/Qwen/qwen35)
