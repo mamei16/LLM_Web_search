@@ -312,7 +312,6 @@ def ui():
                                           info="Smaller values = Slower retrieval (but lower VRAM usage), "
                                                "Larger values = Faster retrieval (but higher VRAM usage). "
                                                "A good trade-off seems to be setting it = 8",
-                                          precision=0,
                                           visible=not params["simple search"])
         with gr.Row():
             chunker = gr.Radio([("Character-based", "character-based"),
@@ -325,7 +324,6 @@ def ui():
                                                             label="Semantic chunking: sentence split threshold (%)",
                                                             info="Defines how different two consecutive sentences have"
                                                                  " to be for them to be split into separate chunks",
-                                                            precision=0,
                                                             visible=not params["simple search"])
         token_classification_chunker_model = gr.Dropdown(label="Token Classifier Model",
                                                          choices=["mirth/chonky_distilbert_base_uncased_1",
@@ -338,20 +336,19 @@ def ui():
         client_timeout = gr.Number(label="Client timeout (in seconds)", info="When reached, pending or unfinished webpage "
                                          "downloads will be cancelled to start the retrieval process immediately",
                                    minimum=1, maximum=100,
-                                   value=lambda: params["client timeout"], precision=0)
+                                   value=lambda: params["client timeout"])
         with gr.Row():
             num_search_results = gr.Number(label="Max. search results to return per query", minimum=1, maximum=100,
-                                           value=lambda: params["search results per query"], precision=0)
+                                           value=lambda: params["search results per query"])
             num_process_search_results = gr.Number(label="Number of search results to process per query", minimum=1,
-                                                   maximum=100, value=lambda: params["duckduckgo results per query"],
-                                                   precision=0)
+                                                   maximum=100, value=lambda: params["duckduckgo results per query"])
         similarity_score_threshold = gr.Number(label="Similarity Score Threshold", minimum=0., maximum=1.,
                                                value=lambda: params["langchain similarity score threshold"],
                                                info="Discard chunks that are not similar "
                                                     "enough to the search query and hence fall below the threshold.")
         chunk_size = gr.Number(label="Max. chunk size", info="The maximal size of the individual chunks that each webpage will"
                                      " be split into, in characters", minimum=2, maximum=10000,
-                               value=lambda: params["chunk size"], precision=0,
+                               value=lambda: params["chunk size"],
                                visible=not params["simple search"])
         think_after_search = gr.Checkbox(label="Enable thinking after searching",
                                          info='Used by pre-2507 Qwen3.',
