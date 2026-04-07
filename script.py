@@ -24,7 +24,7 @@ except ImportError:
 
 
 params = {
-    "display_name": "LLM Web Search",
+    "display_name": "Web Search",
     "is_tab": True,
     "enable": True,
     "search results per query": 5,
@@ -54,7 +54,8 @@ params = {
     "client timeout": 10,
     "show force search checkbox": True,
     "token classification model id": "mirth/chonky_distilbert_base_uncased_1",
-    "think after searching": True
+    "think after searching": True,
+    "add as tool": False
 }
 logger = logging.getLogger('text-generation-webui')
 custom_system_message_filename = None
@@ -119,7 +120,11 @@ def toggle_extension(_enable: bool):
                             model.to("cpu")
                         del model
             torch.cuda.empty_cache()
+
     params.update({"enable": _enable})
+
+    handle_add_as_tool(params.get("add as tool"))
+
     return _enable
 
 
@@ -192,8 +197,32 @@ def clear_update_history_dict():
 
 
 def get_force_search_box_theme_js():
-    with open(f"{extension_path}/force_search_box_theme.js", "r") as f:
+    with open(os.path.join(extension_path, "force_search_box_theme.js"), "r") as f:
         return f.read()
+
+
+def create_tool_symlink():
+    tools_dir = shared.user_data_dir / 'tools'
+    tool_path = tools_dir / "llm_web_search.py"
+    if tools_dir.exists():
+        if not tool_path.exists():
+            os.symlink(os.path.join(extension_path, "tool.py"), tool_path)
+    else:
+        logger.error("Can't create llm_web_search tool symlink: 'tools' directory doesn't exist")
+
+
+def remove_tool_symlink():
+    tool_path = shared.user_data_dir / 'tools' / "llm_web_search.py"
+    if tool_path.exists():
+        tool_path.unlink()
+
+
+def handle_add_as_tool(checked):
+    params.update({"add as tool": checked})
+    if checked and params.get("enable"):
+        create_tool_symlink()
+    else:
+        remove_tool_symlink()
 
 
 def ui():
@@ -234,9 +263,10 @@ def ui():
 
     with gr.Row():
         enable = gr.Checkbox(value=lambda: params['enable'], label='Enable LLM web search')
+        add_as_tool = gr.Checkbox(value=lambda: params['add as tool'], label='Add as tool when enabled')
         use_cpu_only = gr.Checkbox(value=lambda: params['cpu only'],
-                                   label='Run extension on CPU only '
-                                         '(Save settings and restart for the change to take effect)')
+                                   label='Run extension on CPU only',
+                                   info='(Save settings and restart for the change to take effect)')
         with gr.Column():
             save_settings_btn = gr.Button("Save settings")
             saved_success_elem = gr.HTML("", visible=False)
@@ -362,6 +392,7 @@ def ui():
 
     # Event functions to update the parameters in the backend
     enable.input(toggle_extension, enable, enable)
+    add_as_tool.change(handle_add_as_tool, add_as_tool, None)
     use_cpu_only.change(lambda x: params.update({"cpu only": x}), use_cpu_only, None)
     save_settings_btn.click(save_settings, None, [saved_success_elem])
     ensemble_weighting.change(lambda x: params.update({"ensemble weighting": x}), ensemble_weighting, None)
