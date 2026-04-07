@@ -1,8 +1,8 @@
 # Give your local LLM the ability to search the web!
 ![unit tests](https://github.com/mamei16/LLM_Web_search/actions/workflows/unit_tests.yml/badge.svg?branch=main)
 
-This project gives local LLMs the ability to search the web by outputting a specific
-command. Once the command has been found in the model output using a regular expression, a web search is issued, returning a number of result pages. Finally, an
+This project gives local LLMs the ability to search the web, either by using native tool calls or by outputting a specific
+command. Once a tool call has been issued or a command has been found in the model output using a regular expression, a web search is executed, returning a number of result pages. Finally, an
 ensemble of a dense embedding model and 
 [Okapi BM25](https://en.wikipedia.org/wiki/Okapi_BM25) (Or alternatively, [SPLADE](https://github.com/naver/splade))
 is used to extract the relevant parts (if any) of each web page in the search results
@@ -13,8 +13,10 @@ and the results are appended to the model's output.
 * **[Table of Contents](#table-of-contents)**
   * [Installation](#installation)
   * [Usage](#usage)
-    + [Using a custom regular expression](#using-a-custom-regular-expression)
-    + [Reading web pages](#reading-web-pages)
+	+ [Native Tool Calling Mode](#native-tool-calling-mode)
+	+ [Default Mode](#default-mode)
+    	+ [Using a custom regular expression](#using-a-custom-regular-expression)
+    	+ [Reading web pages](#reading-web-pages)
   * [Search backends](#search-backends)
     + [DuckDuckGo](#duckduckgo)
     + [SearXNG](#searxng)
@@ -42,7 +44,7 @@ you can also start the server directly using the following command (assuming you
 ```python server.py --extension LLM_Web_search```
 
 If the installation was successful and the extension was loaded, a new tab with the 
-title "LLM Web Search" should be visible in the web UI.
+title "Web Search" should be visible in the web UI.
 
 See https://github.com/oobabooga/text-generation-webui/wiki/07-%E2%80%90-Extensions for more
 information about extensions.
@@ -50,12 +52,21 @@ information about extensions.
 
 ## Usage
 
-Search queries are extracted from the model's output using a regular expression. This is made easier by prompting the model
+### Native Tool Calling Mode
+You can make this extension available as a tool by simply checking the "Add as tool when enabled" checkbox in the "Web Search" tab. Refresh the list of tools in the "Chat" tab if needed.
+
+In native tool calling mode, the current date and time is provided to the model with each set of search results.
+
+### Default Mode
+
+Models that have not been trained with native tool calling can still be taught how to perform web searches via zero-shot learning, i.e., by prompting the model
 to use a fixed search command (see `system_prompts/` for example prompts).
 
-An example workflow of using this extension could be:
+Search queries are then extracted from the model's output using a regular expression.
+
+An example workflow of using this extension in default mode could be:
 1. Load a model
-2. Head over to the "LLM Web search" tab
+2. Head over to the "Web Search" tab
 3. Load a custom system message/prompt
 4. Ensure that the query part of the command mentioned in the system message 
 can be matched using the current "Search command regex string" 
@@ -63,7 +74,7 @@ can be matched using the current "Search command regex string"
 5. Pick a generation parameter preset that works well for you. You can read more about generation parameters [here](https://github.com/oobabooga/text-generation-webui/wiki/03-%E2%80%90-Parameters-Tab#generation)
 6. Choose "chat-instruct" or "instruct" mode and start chatting
 
-### Using a custom regular expression
+#### Using a custom regular expression
 The default regular expression is:  
 ```regexp
 Search_web\("(.*)"\)
@@ -79,7 +90,7 @@ different models:
 ```regexp
 [Ss]earch_web\((?:["'])(.*)(?:["'])\)
 ```
-### Reading web pages
+#### Reading web pages
 Basic support exists for extracting the full text content from a webpage. The default regex to use this
 functionality is:
 ```regexp
@@ -147,18 +158,3 @@ For natural language, this method generally produces much better results than ch
 This chunking method employs a fine-tune of the DistilBERT transformer model, which has been trained to classify tokens (see [chonky](https://github.com/mirth/chonky)). If a token is classified as the positive class, a new paragraph (or a new chunk) is meant to be started after the token.
  
 While semantic chunking only compares pairs of consecutive sentences when deciding on where to start a new chunk, the token classification model can utilize a much longer context. However, the need to process this context means that this chunking method is slower than semantic chunking.
-
-## Recommended models
-If you (like me) have ≤ 12 GB VRAM, I recommend using one of:
-- [Llama-3.1-8B-instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct)
-- [Gemma-2-9b-it](https://huggingface.co/google/gemma-2-9b-it)
-- [Mistral-Nemo-Instruct-2407](https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407)
-- [Gemma-3-it](https://huggingface.co/google/gemma-3-12b-it)
-- [Qwen3](https://huggingface.co/collections/Qwen/qwen3-67dd247413f0e2e4f653967f)  
- Since the Qwen3 family consists of reasoning models, some unique problems arise:  
-  1. It seems that Qwen3 models are harder to prompt to use the search command. I have uploaded the system prompt that has worked most reliably under the name "reasoning_enforce_search".
-  2. By ticking the checkbox "Enable thinking after searching" in the extension's settings, the model will resume thinking after each search. However, the main webUI only expects the model to think *once* at the start of the message, and so only the first thinking output will be put into a collapsible UI block. You can download a patch [here](https://gist.github.com/mamei16/bdcb994f93f7b3d2c389c04d32bc68d4) that fixes this. Download and extract it, then navigate to your `text-generation-webui` directory, put the patch file there and finally run `git apply ooba_multi_thinking.patch`
-- [GPT-OSS-20b](https://huggingface.co/openai/gpt-oss-20b)  
-You should use either the `gpt_oss` or `gpt_oss2` custom system message.
-- [Nanbeige4.1-3B](Nanbeige/Nanbeige4.1-3B)
-- [Qwen-3.5](https://huggingface.co/collections/Qwen/qwen35)
