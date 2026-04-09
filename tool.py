@@ -38,8 +38,7 @@ tool = {
 def docs_to_dicts(docs):
     dicts = []
     for i, doc in enumerate(docs):
-        doc_dict = {#"Result #": i+1,
-                    "Content": doc.page_content,
+        doc_dict = {"Content": doc.page_content,
                     "Source URL": doc.metadata['source']}
         dicts.append(doc_dict)
     return dicts
@@ -49,11 +48,11 @@ def execute(arguments):
     if not "LLM_Web_search" in state:
         error_msg = "Can't use llm_web_search tool. LLM_Web_search extension not loaded."
         logger.error(error_msg)
-        return error_msg
+        return {"Error": error_msg}
     elif not params["enable"]:
         error_msg = "Can't use llm_web_search tool. LLM_Web_search extension is disabled."
         logger.error(error_msg)
-        return error_msg
+        return {"Error": error_msg}
 
     query = arguments.get('query', '')
 
