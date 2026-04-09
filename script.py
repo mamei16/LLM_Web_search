@@ -587,11 +587,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     compiled_search_command_regex = regex.compile(search_command_regex)
     compiled_open_url_command_regex = regex.compile(open_url_command_regex)
     search_command = search_command_regex.rstrip("*\\[':.(?]\")")
-    gpt_oss_search_command_regex = f'({search_command}) ?(?:<\|constrain\|>)?(?:JSON|json|code)<\|message\|>{{"query": ?"(.*?)".*}}'
     open_url_command = open_url_command_regex.rstrip("*\\[':.(?]\")")
-    gpt_oss_open_url_command_regex = f'({open_url_command}) ?(?:<\|constrain\|>)?(?:JSON|json|code)<\|message\|>{{"url": ?"(.*?)".*}}'
-
-    is_gpt_oss = '<|channel|>final<|message|>' in state['instruction_template_str']
 
     if force_search and not recursive_call:
         question += f" {params['force search prefix']}"
@@ -607,13 +603,9 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
         reply_substr = reply[search_start_idx:]
 
         search_re_match = compiled_search_command_regex.search(reply_substr)
-        if search_re_match is not None or is_gpt_oss and (search_re_match := regex.search(gpt_oss_search_command_regex, reply_substr)) is not None:
+        if search_re_match is not None:
             yield reply
-            if is_gpt_oss:
-                search_command = search_re_match.group(1)
-                search_term = search_re_match.group(2)
-            else:
-                search_term = search_re_match.group(1)
+            search_term = search_re_match.group(1)
 
             if search_term == "query":
                 search_start_idx = search_start_idx + search_re_match.span()[1]
@@ -625,11 +617,8 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             web_search = True
             logger.info(f"LLM_Web_search | Searching for {search_term}...")
 
-            if is_gpt_oss:
-                result_str = "Web search results:\n"
-            else:
-                reply += "\n```plaintext"
-                reply += "\nSearch tool:\n"
+            reply += "\n```plaintext"
+            reply += "\nSearch tool:\n"
 
             if searxng_url == "":
                 search_generator = Generator(retrieve_from_duckduckgo(search_term,
@@ -653,39 +642,26 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
                 search_results = docs_to_pretty_str(search_generator.retval)
             except Exception as exc:
                 exception_message = str(exc)
-                if is_gpt_oss:
-                    result_str += f"The search tool encountered an error: {exception_message}"
-                else:
-                    reply += f"The search tool encountered an error: {exception_message}"
+                reply += f"The search tool encountered an error: {exception_message}"
                 logger.warning(f'LLM_Web_search | {search_term} generated an exception: {exception_message}')
             else:
                 if search_results != "":
-                    if is_gpt_oss:
-                        result_str += search_results
-                    else:
-                        reply += search_results
+                    reply += search_results
                 else:
-                    if is_gpt_oss:
-                        result_str += f"\nThe search tool did not return any results."
-                    else:
-                        reply += f"\nThe search tool did not return any results."
-            if not is_gpt_oss:
-                reply += "```\n"
-                if display_search_results:
-                    time.sleep(GEN_LATENCY_THRESH)
-                    yield reply
+                    reply += f"\nThe search tool did not return any results."
+
+            reply += "```\n"
+            if display_search_results:
+                time.sleep(GEN_LATENCY_THRESH)
+                yield reply
+
             break
 
         open_url_re_match = compiled_open_url_command_regex.search(reply)
-        if (open_url_re_match is not None or is_gpt_oss
-                and (open_url_re_match := regex.search(gpt_oss_open_url_command_regex, reply_substr)) is not None):
+        if open_url_re_match is not None:
             yield reply
 
-            if is_gpt_oss:
-                open_url_command = open_url_re_match.group(1)
-                url = open_url_re_match.group(2)
-            else:
-                url = open_url_re_match.group(1)
+            url = open_url_re_match.group(1)
 
             if url == "url":
                 search_start_idx = search_start_idx + open_url_re_match.span()[1]
@@ -697,51 +673,32 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             read_webpage = True
 
             logger.info(f"LLM_Web_search | Reading {url}...")
-            if is_gpt_oss:
-                result_str = f"Plaintext content of {url}:\n"
-            else:
-                reply += "\n```plaintext"
-                reply += "\nURL opener tool:\n"
+            reply += "\n```plaintext"
+            reply += "\nURL opener tool:\n"
             try:
                 webpage_content = get_webpage_content(url)
             except Exception as exc:
-                if is_gpt_oss:
-                    result_str += f"Couldn't open {url}. Error message: {str(exc)}"
-                else:
-                    reply += f"Couldn't open {url}. Error message: {str(exc)}"
+                reply += f"Couldn't open {url}. Error message: {str(exc)}"
                 logger.warning(f'LLM_Web_search | {url} generated an exception: {str(exc)}')
             else:
-                if is_gpt_oss:
-                    result_str += webpage_content
-                else:
-                    reply += f"\nText content of {url}:\n"
-                    reply += webpage_content
-            if not is_gpt_oss:
-                reply += "```\n"
-                if display_webpage_content:
-                    yield reply + "*Is typing...*"
-                else:
-                    yield original_model_reply + "\n*Is typing...*"
+                reply += f"\nText content of {url}:\n"
+                reply += webpage_content
+
+            reply += "```\n"
+            if display_webpage_content:
+                yield reply + "*Is typing...*"
+            else:
+                yield original_model_reply + "\n*Is typing...*"
+
             break
+
         yield reply
 
     if web_search or read_webpage:
         display_results = web_search and display_search_results or read_webpage and display_webpage_content
         # Add results to context and continue model output
-        if is_gpt_oss:
-            _, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
-            start_turn_str = "<|start|>assistant<|channel|>analysis<|message|>"
-
-            if web_search:
-                tool_start_turn_str = f"<|start|>functions.{search_command} to=assistant<|channel|>commentary<|message|>"
-            else:  # read_webpage
-                tool_start_turn_str = f"<|start|>functions.{open_url_command} to=assistant<|channel|>commentary<|message|>"
-
-            tool_end_turn_str = "<|end|>"
-            new_question = question + reply + end_turn_str + tool_start_turn_str + result_str + tool_end_turn_str + start_turn_str
-        else:
-            start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
-            new_question = question + reply + end_turn_str + start_turn_str
+        start_turn_str, end_turn_str = get_generation_prompt(state, enable_thinking=params["think after searching"])
+        new_question = question + reply + end_turn_str + start_turn_str
         new_reply = ""
         for new_reply in custom_generate_reply(new_question, new_question, state,
                                                stopping_strings, is_chat=is_chat, recursive_call=True):
