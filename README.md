@@ -57,7 +57,7 @@ You can make this extension available as a tool by simply checking the "Add as t
 
 In native tool calling mode, the current date and time is provided to the model with each set of search results.
 
-### Default Mode
+### Legacy Mode
 
 Models that have not been trained with native tool calling can still be taught how to perform web searches via zero-shot learning, i.e., by prompting the model
 to use a fixed search command (see `system_prompts/` for example prompts).
