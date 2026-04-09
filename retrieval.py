@@ -21,7 +21,6 @@ try:
     from .chunkers.ner_chunker import TokenClassificationChunker
     from .utils import (Document, MySentenceTransformer, cosine_similarity,
                         filter_similar_embeddings, bow_filter_similar_texts)
-    from .bettertransformer.transformation import BetterTransformer
 except ImportError:
     from retrievers.faiss_retriever import FaissRetriever
     from retrievers.bm25_retriever import BM25Retriever
@@ -31,7 +30,6 @@ except ImportError:
     from chunkers.ner_chunker import TokenClassificationChunker
     from utils import (Document, MySentenceTransformer, cosine_similarity,
                        filter_similar_embeddings, bow_filter_similar_texts)
-    from bettertransformer.transformation import BetterTransformer
 
 
 class DocumentRetriever:
@@ -60,8 +58,6 @@ class DocumentRetriever:
                                                                         cache_dir=model_cache_dir)
             self.splade_query_model = AutoModelForMaskedLM.from_pretrained("naver/efficient-splade-VI-BT-large-query",
                                                                            **splade_kwargs).to(self.device)
-            BetterTransformer.transform(self.splade_doc_model)
-            BetterTransformer.transform(self.splade_query_model)
             self.splade_batch_size = splade_batch_size
 
         self.token_classification_chunker = None
