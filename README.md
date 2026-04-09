@@ -14,7 +14,7 @@ and the results are appended to the model's output.
   * [Installation](#installation)
   * [Usage](#usage)
 	+ [Native Tool Calling Mode](#native-tool-calling-mode)
-	+ [Default Mode](#default-mode)
+	+ [Legacy Mode](#legacy-mode)
     	+ [Using a custom regular expression](#using-a-custom-regular-expression)
     	+ [Reading web pages](#reading-web-pages)
   * [Search backends](#search-backends)
