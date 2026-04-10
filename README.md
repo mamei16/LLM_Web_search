@@ -64,7 +64,7 @@ to use a fixed search command (see `system_prompts/` for example prompts).
 
 Search queries are then extracted from the model's output using a regular expression.
 
-An example workflow of using this extension in default mode could be:
+An example workflow of using this extension in legacy mode could be:
 1. Load a model
 2. Head over to the "Web Search" tab
 3. Load a custom system message/prompt
