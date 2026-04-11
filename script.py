@@ -10,6 +10,7 @@ import gradio as gr
 import torch
 import regex
 
+import modules
 import modules.shared as shared
 from modules import chat, ui as ui_module
 from modules.utils import gradio
@@ -18,9 +19,15 @@ from modules.text_generation import generate_reply_HF, generate_reply_custom
 try:
     from .llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
     from .retrieval import DocumentRetriever, docs_to_pretty_str
+    from .utils import patched_is_path_allowed
 except ImportError:
     from llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
     from retrieval import DocumentRetriever, docs_to_pretty_str
+    from utils import patched_is_path_allowed
+
+
+# Allow deleting files in this extension's subfolders even if not in 'user_data'
+modules.utils._is_path_allowed = patched_is_path_allowed
 
 
 params = {
