@@ -5,15 +5,12 @@ import copy
 from dataclasses import dataclass
 import re
 from collections import Counter
-from pathlib import Path
 
 from torch import Tensor
 import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer, quantize_embeddings
 from sentence_transformers.util import batch_to_device, truncate_embeddings
-
-import modules.shared as shared
 
 
 @dataclass
@@ -370,11 +367,3 @@ def bow_filter_similar_texts(texts: List[str], similarity_fn: Callable, threshol
                 index_to_drop = first_idx if first_source_rank < second_source_rank else second_idx
                 included_idxs.remove(index_to_drop)
     return list(sorted(included_idxs))
-
-
-def patched_is_path_allowed(abs_path_str):
-    """Check if a path is under the extension's directory or under the configured user_data."""
-    abs_path = Path(abs_path_str).resolve()
-    user_data_resolved = shared.user_data_dir.resolve()
-    extension_path_resolved = Path(__file__).parent.resolve()
-    return abs_path.is_relative_to(extension_path_resolved) or abs_path.is_relative_to(user_data_resolved)

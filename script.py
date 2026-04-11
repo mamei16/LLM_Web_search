@@ -5,6 +5,7 @@ from datetime import datetime
 from collections import defaultdict
 from functools import partial
 import logging
+from pathlib import Path
 
 import gradio as gr
 import torch
@@ -19,12 +20,17 @@ from modules.text_generation import generate_reply_HF, generate_reply_custom
 try:
     from .llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
     from .retrieval import DocumentRetriever, docs_to_pretty_str
-    from .utils import patched_is_path_allowed
 except ImportError:
     from llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
     from retrieval import DocumentRetriever, docs_to_pretty_str
-    from utils import patched_is_path_allowed
 
+
+def patched_is_path_allowed(abs_path_str):
+    """Check if a path is under the extension's directory or under the configured user_data."""
+    abs_path = Path(abs_path_str).resolve()
+    user_data_resolved = shared.user_data_dir.resolve()
+    extension_path_resolved = Path(__file__).parent.resolve()
+    return abs_path.is_relative_to(extension_path_resolved) or abs_path.is_relative_to(user_data_resolved)
 
 # Allow deleting files in this extension's subfolders even if not in 'user_data'
 modules.utils._is_path_allowed = patched_is_path_allowed
