@@ -373,7 +373,7 @@ def bow_filter_similar_texts(texts: List[str], similarity_fn: Callable, threshol
 
 
 def patched_is_path_allowed(abs_path_str):
-    """Check if a path is under the extension directory."""
+    """Check if a path is under the extension's directory or under the configured user_data."""
     abs_path = Path(abs_path_str).resolve()
     user_data_resolved = shared.user_data_dir.resolve()
     extension_path_resolved = Path(__file__).parent.resolve()
