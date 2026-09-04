@@ -42,7 +42,7 @@ class TokenClassificationChunker(TextSplitter):
         super().__init__()
         self.device = device
         self.is_modernbert = model_id.startswith("mirth/chonky_modernbert")
-        self.is_mmBERT = model_id == "mirth/chonky_mmbert_small_multilingual_1"
+        self.is_mmBERT = "mmbert" in model_id.lower()
         self.max_chunk_size = max_chunk_size
         self.character_splitter = RecursiveCharacterTextSplitter(chunk_size=max_chunk_size, chunk_overlap=10,
                                                                  separators=["\n\n", "\n", ".", ", ", " ", ""])
