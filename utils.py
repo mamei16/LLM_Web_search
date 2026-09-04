@@ -51,6 +51,26 @@ def cosine_similarity(X, Y) -> np.ndarray:
     return similarity
 
 
+def split_flat_list(_list, num_sections):
+    """
+    For a list of length l that should be split
+    into n batches, this function returns l % n sub-lists of size l//n + 1
+    and the rest of size l//n.
+    Based on 'numpy.array_split'
+    """
+    assert num_sections > 0, "Can only split list into a positive number of sections."
+    num_per_section, extras = divmod(len(_list), num_sections)
+    section_sizes = (extras * [num_per_section + 1] +
+                     (num_sections - extras) * [num_per_section])
+    i = 0
+    l = []
+    for section_size in section_sizes:
+        end_i = i + section_size
+        l.append(_list[i:end_i])
+        i = end_i
+    return l
+
+
 class SimilarLengthsBatchifyer:
     """
     Generator class to split samples into batches. Groups sample sequences
@@ -115,10 +135,10 @@ class SimilarLengthsBatchifyer:
             dyn_batch_size = self.length_to_batch_size[length]
 
             # Compute the number of batches
-            num_batches = np.ceil(len(sequence_indices) / dyn_batch_size)
+            num_batches = math.ceil(len(sequence_indices) / dyn_batch_size)
 
             # Loop over all possible batches
-            for batch_indices in np.array_split(sequence_indices, num_batches):
+            for batch_indices in split_flat_list(sequence_indices, num_batches):
                 yield batch_indices
     
     
@@ -195,11 +215,10 @@ class MySentenceTransformer(SentenceTransformer):
         all_embeddings = []
         tokenized_sentences = self.tokenizer(sentences, verbose=False)["input_ids"]
         batchifyer = SimilarLengthsBatchifyer(batch_size, tokenized_sentences)
-        sentences = np.array(sentences)
         batch_indices = []
         for index_batch in batchifyer:
             batch_indices.append(index_batch)
-            sentences_batch = sentences[index_batch]
+            sentences_batch = [sentences[i] for i in index_batch]
             features = self.tokenize(sentences_batch)
             if self.device.type == "hpu":
                 if "input_ids" in features:

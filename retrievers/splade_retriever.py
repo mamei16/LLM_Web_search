@@ -44,12 +44,12 @@ class SpladeRetriever:
         tokenized_texts = self.splade_doc_tokenizer(texts, truncation=True, padding=False,
                                                     return_tensors="np")["input_ids"]
         batchifyer = SimilarLengthsBatchifyer(batch_size, tokenized_texts)
-        texts = np.array(texts)
         batch_indices = []
         for index_batch in batchifyer:
             batch_indices.append(index_batch)
+            text_batch = [texts[i] for i in index_batch]
             with torch.no_grad():
-                tokens = self.splade_doc_tokenizer(texts[index_batch].tolist(), truncation=True, padding=True,
+                tokens = self.splade_doc_tokenizer(text_batch, truncation=True, padding=True,
                                                    return_tensors="pt").to(self.device)
                 output = self.splade_doc_model(**tokens)
             logits, attention_mask = output.logits, tokens.attention_mask
