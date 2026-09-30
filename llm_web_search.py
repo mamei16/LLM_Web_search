@@ -74,6 +74,45 @@ def retrieve_from_duckduckgo(query: str, document_retriever: DocumentRetriever, 
     return documents[:max_results]
 
 
+def retrieve_from_youcom(query: str, api_key: str, document_retriever: DocumentRetriever, max_results: int,
+                         simple_search: bool = False):
+    documents = []
+    query = query.strip("\"'")
+    yield f'Getting results from You.com...'
+
+    search_url = "https://api.you.com/api/search"
+    headers = {"X-API-Key": api_key}
+    response = requests.get(search_url, headers=headers, timeout=document_retriever.client_timeout,
+                           params={"query": query, "num_web_results": max_results})
+    response.raise_for_status()
+    response_dict = response.json()
+
+    result_documents = []
+    result_urls = []
+    for result in response_dict.get("results", []):
+        if not result.get("url"):
+            continue
+        result_document = Document(page_content=f"Title: {result.get('title', '')}\n{result.get('description', '')}",
+                                   metadata={"source": result["url"]})
+        result_documents.append(result_document)
+        result_urls.append(result["url"])
+
+    if simple_search:
+        retrieval_gen = Generator(document_retriever.retrieve_from_snippets(query, result_documents))
+    else:
+        retrieval_gen = Generator(document_retriever.retrieve_from_webpages(query, result_urls))
+
+    for status_message in retrieval_gen:
+        yield status_message
+    documents.extend(retrieval_gen.retval)
+
+    if not documents:    # Fall back to old simple search rather than returning nothing
+        print("LLM_Web_search | Could not find any page content "
+              "similar enough to be extracted, using basic search fallback...")
+        return result_documents[:max_results]
+    return documents[:max_results]
+
+
 def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetriever, max_results: int,
                           instant_answers: bool, simple_search: bool = False):
     yield f'Getting results from Searxng...'

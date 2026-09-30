@@ -18,10 +18,12 @@ from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 
 try:
-    from .llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from .llm_web_search import (get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng,
+                                 retrieve_from_youcom, Generator)
     from .retrieval import DocumentRetriever, docs_to_pretty_str
 except ImportError:
-    from llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from llm_web_search import (get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng,
+                                 retrieve_from_youcom, Generator)
     from retrieval import DocumentRetriever, docs_to_pretty_str
 
 
@@ -52,6 +54,7 @@ params = {
     "display extracted URL content in chat": True,
     "keep results in context": True,
     "searxng url": "",
+    "you.com api key": "",
     "cpu only": True,
     "chunk size": 800,
     "duckduckgo results per query": 10,
@@ -402,6 +405,10 @@ def ui():
     with gr.Row():
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=lambda: params["searxng url"])
+        youcom_api_key = gr.Textbox(label="You.com API key",
+                                    info="If set, the You.com Search API is used as the search backend "
+                                         "(takes precedence over SearXNG and DuckDuckGo)",
+                                    value=lambda: params["you.com api key"])
 
     # Event functions to update the parameters in the backend
     enable.input(toggle_extension, enable, enable)
@@ -446,6 +453,7 @@ def ui():
     keep_results_in_ctx.change(lambda x: params.update({"keep results in context": x}), keep_results_in_ctx,None)
     show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
+    youcom_api_key.change(lambda x: params.update({"you.com api key": x}), youcom_api_key, None)
 
     delete_button.click(
         lambda x: x, system_prompt, gradio('delete_filename')).then(
@@ -588,6 +596,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     search_command_regex = params["search command regex"]
     open_url_command_regex = params["open url command regex"]
     searxng_url = params["searxng url"]
+    youcom_api_key = params["you.com api key"]
     display_search_results = params["display search results in chat"]
     display_webpage_content = params["display extracted URL content in chat"]
     keep_results_in_context = params["keep results in context"]
@@ -633,7 +642,13 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
 
-            if searxng_url == "":
+            if youcom_api_key != "":
+                search_generator = Generator(retrieve_from_youcom(search_term,
+                                                                  youcom_api_key,
+                                                                  document_retriever,
+                                                                  max_search_results,
+                                                                  simple_search))
+            elif searxng_url == "":
                 search_generator = Generator(retrieve_from_duckduckgo(search_term,
                                                                       document_retriever,
                                                                       max_search_results,

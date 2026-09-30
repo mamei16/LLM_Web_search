@@ -20,6 +20,7 @@ and the results are appended to the model's output.
   * [Search backends](#search-backends)
     + [DuckDuckGo](#duckduckgo)
     + [SearXNG](#searxng)
+    + [You.com](#youcom)
       + [Search parameters](#search-parameters)
   * [Search types](#search-types)
 	  + [Simple search](#simple-search)
@@ -113,6 +114,15 @@ To modify the categories, engines, languages etc. that should be used for a
 specific query, it must follow the
 [SearXNG search syntax](https://docs.searxng.org/user/search-syntax.html). Currently, 
 automatic redirect and Special Queries are not supported.
+
+
+### You.com
+
+To use the [You.com Search API](https://you.com/docs/api-reference/search) instead of DuckDuckGo, paste an API key
+into the "You.com API key" text field of the "LLM Web Search" settings tab. You can get a key at
+[you.com/platform/api-keys](https://you.com/platform/api-keys). If both a You.com API key and a SearXNG URL are set,
+the You.com API takes precedence. When no key is set, the extension behaves exactly as before
+(DuckDuckGo by default, SearXNG if a URL is configured).
 
 
 ## Search types

@@ -15,6 +15,7 @@ extension_module = state["LLM_Web_search"][-1]
 params                   = extension_module.params
 retrieve_from_duckduckgo = extension_module.retrieve_from_duckduckgo
 retrieve_from_searxng    = extension_module.retrieve_from_searxng
+retrieve_from_youcom     = extension_module.retrieve_from_youcom
 Generator                = extension_module.Generator
 document_retriever       = extension_module.document_retriever
 
@@ -60,6 +61,7 @@ def execute(arguments):
     instant_answers    = params["instant answers"]
     simple_search      = params["simple search"]
     searxng_url        = params["searxng url"]
+    youcom_api_key     = params["you.com api key"]
 
     document_retriever.num_results                         = int(params["duckduckgo results per query"])
     document_retriever.similarity_threshold                = params["langchain similarity score threshold"]
@@ -71,7 +73,13 @@ def execute(arguments):
     document_retriever.client_timeout                      = params["client timeout"]
     document_retriever.token_classification_model_id       = params["token classification model id"]
 
-    if searxng_url == "":
+    if youcom_api_key != "":
+        search_generator = Generator(retrieve_from_youcom(query,
+                                                          youcom_api_key,
+                                                          document_retriever,
+                                                          max_search_results,
+                                                          simple_search))
+    elif searxng_url == "":
         search_generator = Generator(retrieve_from_duckduckgo(query,
                                                               document_retriever,
                                                               max_search_results,
