@@ -39,7 +39,10 @@ def _request(session, method, params, request_id, timeout):
     payload = {"jsonrpc": "2.0", "method": method, "params": params}
     if request_id is not None:
         payload["id"] = request_id
-    with session.post(MCP_URL, json=payload, timeout=timeout, stream=True) as response:
+    # Redirect handling can reapply netrc credentials even with anonymous auth.
+    with session.post(MCP_URL, json=payload, timeout=timeout, stream=True, allow_redirects=False) as response:
+        if 300 <= response.status_code < 400:
+            raise requests.HTTPError("Parallel search does not allow HTTP redirects", response=response)
         response.raise_for_status()
         if response.headers.get("Mcp-Session-Id"):
             session.headers["Mcp-Session-Id"] = response.headers["Mcp-Session-Id"]

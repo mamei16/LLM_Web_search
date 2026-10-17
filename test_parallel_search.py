@@ -74,27 +74,45 @@ def rpc(request_id, result):
 
 
 @pytest.fixture
-def wire(monkeypatch):
-    """Observe fully prepared requests; only replace the network send boundary."""
+def anonymous_environment(monkeypatch, tmp_path):
+    """Use only synthetic credentials, including Requests' default-netrc path."""
+    netrc = tmp_path / "netrc"
+    netrc.write_text("machine search.parallel.ai login fixture password synthetic-source\n"
+                     "machine redirect.example login fixture password synthetic-destination\n"
+                     "default login fixture password synthetic-default\n")
+    monkeypatch.setenv("NETRC", str(netrc))
+
+
+@pytest.fixture
+def wire(monkeypatch, anonymous_environment):
+    """Keep Session.send and its real redirect handling; replace only transport I/O."""
     calls = []
     replies = []
 
-    def send(session, request, **kwargs):
-        calls.append((request, kwargs))
-        answer = replies.pop(0)
-        if isinstance(answer, BaseException):
-            raise answer
-        status, content_type, body = answer
-        response = requests.Response()
-        response.request = request
-        response.status_code = status
-        response.headers.update({"Content-Type": content_type, "Mcp-Session-Id": "transport-session"})
-        response._content = body.encode() if isinstance(body, str) else json.dumps(body).encode()
-        response._content_consumed = True
-        response.raw = io.BytesIO(response._content)
-        return response
+    class Adapter(requests.adapters.BaseAdapter):
+        def send(self, request, **kwargs):
+            calls.append((request, kwargs))
+            answer = replies.pop(0)
+            if isinstance(answer, BaseException):
+                raise answer
+            status, content_type, body, *extra_headers = answer
+            response = requests.Response()
+            response.request = request
+            response.url = request.url
+            response.status_code = status
+            response.headers.update({"Content-Type": content_type, "Mcp-Session-Id": "transport-session"})
+            if extra_headers:
+                response.headers.update(extra_headers[0])
+            response._content = body.encode() if isinstance(body, str) else json.dumps(body).encode()
+            response._content_consumed = True
+            response.raw = io.BytesIO(response._content)
+            return response
 
-    monkeypatch.setattr(requests.Session, "send", send)
+        def close(self):
+            pass
+
+    adapter = Adapter()
+    monkeypatch.setattr(requests.Session, "get_adapter", lambda self, url: adapter)
 
     def enqueue(result=None, sse=False):
         replies.extend([(200, "application/json", rpc(1, {"protocolVersion": "2025-03-26"})),
@@ -178,6 +196,78 @@ def test_text_content_and_result_limit(wire):
     assert len(parallel_search.perform_parallel_search("Python releases", max_results=1)) == 1
 
 
+@pytest.mark.parametrize("stage", [0, 1, 2], ids=["initialize", "initialized", "tool-call"])
+@pytest.mark.parametrize("status", [301, 302, 303, 307, 308])
+@pytest.mark.parametrize("destination", [
+    "https://search.parallel.ai/redirected",
+    "https://redirect.example/mcp",
+    "https://default.example/mcp",
+    "http://search.parallel.ai/mcp",
+], ids=["same-host", "cross-origin", "default-netrc", "https-downgrade"])
+def test_redirects_never_send_second_request_or_credentials(wire, stage, status, destination):
+    wire.enqueue()
+    wire.replies[stage] = (status, "application/json", {}, {"Location": destination})
+    # A second transport request would reach this sink or consume another RPC.
+    wire.replies.append((200, "application/json", {}))
+    with pytest.raises(requests.HTTPError, match="does not allow HTTP redirects") as error:
+        parallel_search.perform_parallel_search("Python releases")
+    assert error.value.response.status_code == status
+    assert len(wire.calls) == stage + 1
+    assert all(request.url == parallel_search.MCP_URL for request, _ in wire.calls)
+    assert all("Authorization" not in request.headers for request, _ in wire.calls)
+
+
+@pytest.mark.parametrize("stage", [0, 1, 2], ids=["initialize", "initialized", "tool-call"])
+@pytest.mark.parametrize("status", range(300, 400))
+def test_every_3xx_is_rejected_before_mcp_processing(wire, monkeypatch, stage, status):
+    wire.enqueue()
+    _, content_type, body = wire.replies[stage]
+    # Even a valid RPC body without Location must fail, including notifications.
+    wire.replies[stage] = (status, content_type, body)
+    original = parallel_search._read_reply
+    read_statuses = []
+
+    def read_reply(response, *args):
+        read_statuses.append(response.status_code)
+        return original(response, *args)
+
+    monkeypatch.setattr(parallel_search, "_read_reply", read_reply)
+    with pytest.raises(requests.HTTPError, match="does not allow HTTP redirects"):
+        parallel_search.perform_parallel_search("Python releases")
+    assert len(wire.calls) == stage + 1
+    assert all(value == 200 for value in read_statuses)
+
+
+def test_anonymous_calls_preserve_proxy_and_certificate_environment(wire, monkeypatch, tmp_path):
+    bundle = tmp_path / "fixture-ca.pem"
+    bundle.write_text("synthetic certificate path; adapter performs no TLS I/O")
+    monkeypatch.setenv("REQUESTS_CA_BUNDLE", str(bundle))
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example:8080")
+    monkeypatch.setenv("https_proxy", "http://proxy.example:8080")
+    monkeypatch.setenv("NO_PROXY", "")
+    monkeypatch.setenv("no_proxy", "")
+    wire.enqueue(sse=True)
+    assert parallel_search.perform_parallel_search("Python releases")[0]["url"] == SEARCH_CONTENT["results"][0]["url"]
+    for request, options in wire.calls:
+        assert "Authorization" not in request.headers
+        assert request.headers["User-Agent"] == parallel_search.USER_AGENT
+        assert options["verify"] == str(bundle)
+        assert options["proxies"]["https"] == "http://proxy.example:8080"
+
+
+@pytest.mark.parametrize("stage", [0, 1, 2])
+def test_native_redirect_errors_stop_search(backend, wire, stage):
+    wire.enqueue()
+    wire.replies[stage] = (307, "application/json", {}, {"Location": "https://redirect.example/mcp"})
+    params = defaults()
+    params["use parallel search"] = True
+    retriever = Retriever()
+    output = native_tool(backend, retriever, params).execute({"query": "Python releases"})
+    assert "does not allow HTTP redirects" in output["Error"]
+    assert len(wire.calls) == stage + 1
+    assert retriever.calls == []
+
+
 def test_empty_results_skip_local_retrieval(backend, wire):
     wire.enqueue({"structuredContent": {"results": []}})
     retriever = Retriever()
@@ -248,8 +338,11 @@ def test_disabled_native_tool_never_searches(backend, wire):
     assert wire.calls == []
 
 
-def test_legacy_command_consumes_parallel_results(backend, wire):
+@pytest.mark.parametrize("redirect", [False, True])
+def test_legacy_command_consumes_parallel_results_or_reports_redirect(backend, wire, redirect):
     wire.enqueue()
+    if redirect:
+        wire.replies[2] = (308, "application/json", {}, {"Location": "http://search.parallel.ai/mcp"})
     params = defaults()
     params.update({"use parallel search": True, "simple search": True})
     shared = SimpleNamespace(model=object())
@@ -267,7 +360,10 @@ def test_legacy_command_consumes_parallel_results(backend, wire):
         "get_generation_prompt": lambda *args, **kwargs: ("", ""),
     })
     replies = list(namespace["custom_generate_reply"]("Find Python releases", "Find Python releases", {}, [], True))
-    assert "Python release information." in replies[-1]
-    assert "https://www.python.org/downloads/" in replies[-1]
+    if redirect:
+        assert "The search tool encountered an error: Parallel search does not allow HTTP redirects" in replies[-1]
+    else:
+        assert "Python release information." in replies[-1]
+        assert "https://www.python.org/downloads/" in replies[-1]
     assert replies[-1].endswith("An answer using the search results.")
     assert len(wire.calls) == 3
