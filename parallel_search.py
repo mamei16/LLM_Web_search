@@ -35,14 +35,22 @@ def _read_reply(response, request_id, timeout):
     return reply
 
 
+def _reject_redirects(response, **kwargs):
+    if 300 <= response.status_code < 400:
+        # Session.send prepares Response.next even when redirect following is off.
+        # A response hook stops that preparation before it can consult netrc.
+        response.close()
+        raise requests.HTTPError("Parallel search does not allow HTTP redirects", response=response)
+    return response
+
+
 def _request(session, method, params, request_id, timeout):
     payload = {"jsonrpc": "2.0", "method": method, "params": params}
     if request_id is not None:
         payload["id"] = request_id
-    # Redirect handling can reapply netrc credentials even with anonymous auth.
-    with session.post(MCP_URL, json=payload, timeout=timeout, stream=True, allow_redirects=False) as response:
-        if 300 <= response.status_code < 400:
-            raise requests.HTTPError("Parallel search does not allow HTTP redirects", response=response)
+    with session.post(MCP_URL, json=payload, timeout=timeout, stream=True, allow_redirects=False,
+                      hooks={"response": _reject_redirects}) as response:
+        _reject_redirects(response)
         response.raise_for_status()
         if response.headers.get("Mcp-Session-Id"):
             session.headers["Mcp-Session-Id"] = response.headers["Mcp-Session-Id"]

@@ -204,7 +204,22 @@ def test_text_content_and_result_limit(wire):
     "https://default.example/mcp",
     "http://search.parallel.ai/mcp",
 ], ids=["same-host", "cross-origin", "default-netrc", "https-downgrade"])
-def test_redirects_never_send_second_request_or_credentials(wire, stage, status, destination):
+def test_redirects_never_send_second_request_or_credentials(wire, monkeypatch, stage, status, destination):
+    netrc_lookups = []
+    original_auth = requests.sessions.get_netrc_auth
+    original_close = requests.Response.close
+    closed_responses = []
+
+    def netrc_auth(url, *args, **kwargs):
+        netrc_lookups.append(url)
+        return original_auth(url, *args, **kwargs)
+
+    def close(response):
+        closed_responses.append(response)
+        return original_close(response)
+
+    monkeypatch.setattr(requests.sessions, "get_netrc_auth", netrc_auth)
+    monkeypatch.setattr(requests.Response, "close", close)
     wire.enqueue()
     wire.replies[stage] = (status, "application/json", {}, {"Location": destination})
     # A second transport request would reach this sink or consume another RPC.
@@ -212,6 +227,9 @@ def test_redirects_never_send_second_request_or_credentials(wire, stage, status,
     with pytest.raises(requests.HTTPError, match="does not allow HTTP redirects") as error:
         parallel_search.perform_parallel_search("Python releases")
     assert error.value.response.status_code == status
+    assert error.value.response.next is None
+    assert error.value.response in closed_responses
+    assert netrc_lookups == []
     assert len(wire.calls) == stage + 1
     assert all(request.url == parallel_search.MCP_URL for request, _ in wire.calls)
     assert all("Authorization" not in request.headers for request, _ in wire.calls)
