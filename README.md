@@ -21,6 +21,7 @@ and the results are appended to the model's output.
     + [DuckDuckGo](#duckduckgo)
     + [SearXNG](#searxng)
       + [Search parameters](#search-parameters)
+    + [Parallel](#parallel)
   * [Search types](#search-types)
 	  + [Simple search](#simple-search)
 	  + [Full search](#full-search)
@@ -113,6 +114,25 @@ To modify the categories, engines, languages etc. that should be used for a
 specific query, it must follow the
 [SearXNG search syntax](https://docs.searxng.org/user/search-syntax.html). Currently, 
 automatic redirect and Special Queries are not supported.
+
+### Parallel
+
+Enable **Use Parallel Search** in the "Web Search" tab to search with
+[Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp).
+The anonymous endpoint at `https://search.parallel.ai/mcp` provides free web
+search powered by Fast mode, with no account or API key required. Anonymous use
+has rate limits; service errors are reported in the search results.
+
+This option works in both native tool calling and legacy modes. Simple search
+uses Parallel's excerpts with the existing snippet retriever; full search downloads
+the result URLs with the existing webpage retriever. If local retrieval finds no
+matching chunks, the search excerpts are returned instead. Parallel may return
+fewer results than the configured maximum. The **Client timeout** setting also
+controls the connection/read timeout for each Parallel MCP request.
+
+Click **Save settings** to keep this selection after restarting. Parallel is off
+by default. Uncheck it to resume using the saved SearXNG URL, or DuckDuckGo when
+that field is empty. The existing webpage-reading command is unchanged.
 
 
 ## Search types
