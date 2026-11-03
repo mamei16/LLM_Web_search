@@ -13,8 +13,7 @@ if not "LLM_Web_search" in state:
 extension_module = state["LLM_Web_search"][-1]
 
 params                   = extension_module.params
-retrieve_from_duckduckgo = extension_module.retrieve_from_duckduckgo
-retrieve_from_searxng    = extension_module.retrieve_from_searxng
+retrieve_search         = extension_module.retrieve_search
 Generator                = extension_module.Generator
 document_retriever       = extension_module.document_retriever
 
@@ -71,18 +70,9 @@ def execute(arguments):
     document_retriever.client_timeout                      = params["client timeout"]
     document_retriever.token_classification_model_id       = params["token classification model id"]
 
-    if searxng_url == "":
-        search_generator = Generator(retrieve_from_duckduckgo(query,
-                                                              document_retriever,
-                                                              max_search_results,
-                                                              simple_search))
-    else:
-        search_generator = Generator(retrieve_from_searxng(query,
-                                                           searxng_url,
-                                                           document_retriever,
-                                                           max_search_results,
-                                                           instant_answers,
-                                                           simple_search))
+    search_generator = Generator(retrieve_search(query, document_retriever, max_search_results,
+                                                 simple_search, searxng_url, instant_answers,
+                                                 params["use parallel search"]))
     try:
         for _ in search_generator:
             pass
