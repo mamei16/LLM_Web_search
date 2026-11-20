@@ -9,9 +9,11 @@ from requests.exceptions import JSONDecodeError
 from bs4 import BeautifulSoup
 
 try:
+    from .parallel_search import perform_parallel_search
     from .retrieval import DocumentRetriever
     from .utils import Document, Generator
 except ImportError:
+    from parallel_search import perform_parallel_search
     from retrieval import DocumentRetriever
     from utils import Document, Generator
 
@@ -124,6 +126,36 @@ def retrieve_from_searxng(query: str, url: str, document_retriever: DocumentRetr
         yield status_message
     documents = retrieval_gen.retval
     return documents[:max_results]
+
+
+def retrieve_from_parallel(query: str, document_retriever: DocumentRetriever, max_results: int,
+                           simple_search: bool = False):
+    query = query.strip("\"'")
+    yield 'Getting results from Parallel...'
+    results = perform_parallel_search(query, max_results=document_retriever.num_results,
+                                      timeout=document_retriever.client_timeout)
+    if not results:
+        return []
+    result_documents = [Document(page_content=f"Title: {item['title']}\n{item['content']}",
+                                 metadata={"source": item["url"]}) for item in results]
+    if simple_search:
+        retrieval = document_retriever.retrieve_from_snippets(query, result_documents)
+    else:
+        retrieval = document_retriever.retrieve_from_webpages(query, [item["url"] for item in results])
+    documents = yield from retrieval
+    # Keep useful excerpts when local retrieval finds no sufficiently similar chunks.
+    return (documents or result_documents)[:max_results]
+
+
+def retrieve_search(query, document_retriever, max_results, simple_search=False,
+                    searxng_url="", instant_answers=True, use_parallel=False):
+    """Share backend selection between native tool calls and legacy commands."""
+    if use_parallel:
+        return retrieve_from_parallel(query, document_retriever, max_results, simple_search)
+    if searxng_url:
+        return retrieve_from_searxng(query, searxng_url, document_retriever, max_results,
+                                    instant_answers, simple_search)
+    return retrieve_from_duckduckgo(query, document_retriever, max_results, simple_search)
 
 
 def get_webpage_content(url: str) -> str:

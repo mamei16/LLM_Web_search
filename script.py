@@ -18,10 +18,10 @@ from modules.utils import gradio
 from modules.text_generation import generate_reply_HF, generate_reply_custom
 
 try:
-    from .llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from .llm_web_search import get_webpage_content, retrieve_search, Generator
     from .retrieval import DocumentRetriever, docs_to_pretty_str
 except ImportError:
-    from llm_web_search import get_webpage_content, retrieve_from_duckduckgo, retrieve_from_searxng, Generator
+    from llm_web_search import get_webpage_content, retrieve_search, Generator
     from retrieval import DocumentRetriever, docs_to_pretty_str
 
 
@@ -52,6 +52,7 @@ params = {
     "display extracted URL content in chat": True,
     "keep results in context": True,
     "searxng url": "",
+    "use parallel search": False,
     "cpu only": True,
     "chunk size": 800,
     "duckduckgo results per query": 10,
@@ -400,6 +401,9 @@ def ui():
                                         label='Show force search checkbox', elem_id="show-force-search-box")
 
     with gr.Row():
+        use_parallel_search = gr.Checkbox(label="Use Parallel Search",
+                                          value=lambda: params["use parallel search"],
+                                          info="Search via Parallel instead of DuckDuckGo or SearXNG. No API key needed.")
         searxng_url = gr.Textbox(label="SearXNG URL",
                                  value=lambda: params["searxng url"])
 
@@ -446,6 +450,7 @@ def ui():
     keep_results_in_ctx.change(lambda x: params.update({"keep results in context": x}), keep_results_in_ctx,None)
     show_force_search.change(lambda x: params.update({"show force search checkbox": x}), show_force_search, None)
     searxng_url.change(lambda x: params.update({"searxng url": x}), searxng_url, None)
+    use_parallel_search.change(lambda x: params.update({"use parallel search": x}), use_parallel_search, None)
 
     delete_button.click(
         lambda x: x, system_prompt, gradio('delete_filename')).then(
@@ -633,18 +638,9 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
             reply += "\n```plaintext"
             reply += "\nSearch tool:\n"
 
-            if searxng_url == "":
-                search_generator = Generator(retrieve_from_duckduckgo(search_term,
-                                                                      document_retriever,
-                                                                      max_search_results,
-                                                                      simple_search))
-            else:
-                search_generator = Generator(retrieve_from_searxng(search_term,
-                                                                   searxng_url,
-                                                                   document_retriever,
-                                                                   max_search_results,
-                                                                   instant_answers,
-                                                                   simple_search))
+            search_generator = Generator(retrieve_search(search_term, document_retriever, max_search_results,
+                                                         simple_search, searxng_url, instant_answers,
+                                                         params["use parallel search"]))
             try:
                 for status_message in search_generator:
                     time.sleep(GEN_LATENCY_THRESH)
