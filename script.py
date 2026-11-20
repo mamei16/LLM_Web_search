@@ -559,7 +559,7 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     :return:
     """
     if shared.model.__class__.__name__ in ['LlamaServer', 'LlamaCppModel', 'RWKVModel', 'ExllamaModel', 'Exllamav2Model',
-                                           'CtransformersModel']:
+                                           'CtransformersModel', "StrataLoader"]:
         generate_func = generate_reply_custom
     else:
         generate_func = generate_reply_HF
