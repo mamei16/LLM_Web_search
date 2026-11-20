@@ -15,7 +15,10 @@ class FaissRetriever:
         self.embedding_model = embedding_model
         self.num_results = num_results
         self.similarity_threshold = similarity_threshold
-        self.index = faiss.IndexFlatL2(embedding_model.get_sentence_embedding_dimension())
+        if hasattr(embedding_model, "get_embedding_dimension"):   # Handle deprecation of 'get_sentence_embedding_dimension'
+            self.index = faiss.IndexFlatL2(embedding_model.get_embedding_dimension())
+        else:
+            self.index = faiss.IndexFlatL2(embedding_model.get_sentence_embedding_dimension())
         self.document_embeddings = []
         self.documents = []
         self.text_to_embedding = {}

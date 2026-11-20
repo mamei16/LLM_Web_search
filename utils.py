@@ -199,9 +199,10 @@ class MySentenceTransformer(SentenceTransformer):
         if prompt is not None:
             sentences = [prompt + sentence for sentence in sentences]
 
+            # Handle deprecation of SentenceTransformer.tokenize
+            tokenized_prompt = self.preprocess([prompt]) if hasattr(self, "preprocess") else self.tokenize([prompt])
             # Some models (e.g. INSTRUCTOR, GRIT) require removing the prompt before pooling
             # Tracking the prompt length allow us to remove the prompt during pooling
-            tokenized_prompt = self.tokenize([prompt])
             if "input_ids" in tokenized_prompt:
                 extra_features["prompt_length"] = tokenized_prompt["input_ids"].shape[-1] - 1
 
@@ -219,7 +220,8 @@ class MySentenceTransformer(SentenceTransformer):
         for index_batch in batchifyer:
             batch_indices.append(index_batch)
             sentences_batch = [sentences[i] for i in index_batch]
-            features = self.tokenize(sentences_batch)
+            # Handle deprecation of SentenceTransformer.tokenize
+            features = self.preprocess(sentences_batch) if hasattr(self, "preprocess") else self.tokenize(sentences_batch)
             if self.device.type == "hpu":
                 if "input_ids" in features:
                     curr_tokenize_len = features["input_ids"].shape
