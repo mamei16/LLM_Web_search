@@ -564,7 +564,9 @@ def custom_generate_reply(question, original_question, state, stopping_strings, 
     else:
         generate_func = generate_reply_HF
 
-    if not params['enable']:
+    selected_tools = state.get('selected_tools', [])
+    # Don't use legacy command matching logic when extension active as tool
+    if not params['enable'] or (params['enable'] and "llm_web_search" in selected_tools):
         for reply in generate_func(question, original_question, state, stopping_strings, is_chat=is_chat):
             yield reply
         return
