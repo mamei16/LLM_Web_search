@@ -14,3 +14,4 @@ dependencies:
   - aiohttp>=3.14.5
   - pydantic<=2.10.6
   - regex
+  - requests>=2.32.5
