@@ -116,8 +116,7 @@ def toggle_extension(_enable: bool):
                                                keyword_retriever=params["keyword retriever"],
                                                chunking_method=params["chunking method"],
                                                model_cache_dir=os.path.join(extension_path, "hf_models"))
-        embedding_model = document_retriever.embedding_model
-        embedding_model.to(embedding_model._target_device)
+        document_retriever.to("cpu")
         custom_system_message_filename = params.get("default system prompt filename")
     else:
         if not params["cpu only"]:  # free some VRAM

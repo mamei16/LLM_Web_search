@@ -170,6 +170,16 @@ class DocumentRetriever:
 
         return [ranked_docs[i] for i in included_idxs[:self.num_results]]
 
+    def to(self, device: str):
+        self.device = device
+        self.embedding_model.to(device)
+        if hasattr(self, "splade_query_model"):
+            self.splade_query_model.to(device)
+        if hasattr(self, "splade_doc_model"):
+            self.splade_doc_model.to(device)
+        if self.token_classification_chunker:
+            self.token_classification_chunker.model.to(device)
+
 
 async def async_download_html(url: str, headers: Dict, timeout: int):
     async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(timeout),

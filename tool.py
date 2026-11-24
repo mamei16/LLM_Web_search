@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime
 
+import torch
+
 from modules.extensions import state
 
 
@@ -54,6 +56,9 @@ def execute(arguments):
         logger.error(error_msg)
         return {"Error": error_msg}
 
+    if not params["cpu only"]:
+        document_retriever.to("cuda")
+
     query = arguments.get('query', '')
 
     max_search_results = int(params["search results per query"])
@@ -92,5 +97,8 @@ def execute(arguments):
         exception_message = str(exc)
         search_results_dict = {"Error": exception_message}
         logger.warning(f'LLM_Web_search | {query} generated an exception: {exception_message}')
+
+    document_retriever.to("cpu")
+    torch.cuda.empty_cache()
 
     return search_results_dict
